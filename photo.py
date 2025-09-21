@@ -20,6 +20,7 @@ import sys
 import json
 import time
 import html
+import mimetypes
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -29,7 +30,13 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 # ---------- Config ----------
 HOST = "0.0.0.0"
 PORT = 8080
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
 IMAGE_DIR = Path("/image")  # can be a symlink to ~/photoframe/images
+
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 # If your panel is mounted upside down, set True
@@ -284,141 +291,6 @@ def stop_carousel():
         CAROUSEL_STOP_EVENT.set()
 
 # ---------- HTTP ----------
-INDEX_HTML = """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Inky Photoframe</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:16px;max-width:900px}
-  h1{margin:0 0 8px 0}
-  .section{margin:16px 0}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
-  .card{border:1px solid #ddd;border-radius:8px;padding:8px}
-  .thumb{width:100%;height:100px;object-fit:cover;border-radius:6px}
-  button{padding:8px 12px;border:1px solid #ccc;border-radius:8px;background:#f6f6f6;cursor:pointer}
-  input[type="number"]{width:90px;padding:8px}
-  small{color:#666}
-</style>
-</head>
-<body>
-  <h1>Inky Photoframe</h1>
-  <div class="section">
-    <div id="status"><small>Loading status…</small></div>
-  </div>
-
-  <div class="section">
-    <h2>Upload</h2>
-    <form id="uploadForm">
-      <input type="file" name="file" accept="image/*" multiple required>
-      <button type="submit">Upload</button>
-    </form>
-    <div id="uploadMsg"></div>
-  </div>
-
-  <div class="section">
-    <h2>Carousel</h2>
-    <div class="row">
-      <label>Minutes per photo</label>
-      <input id="minutes" type="number" min="1" value="5">
-      <button id="startBtn">Start</button>
-      <button id="stopBtn">Stop</button>
-    </div>
-    <div id="carMsg"></div>
-  </div>
-
-  <div class="section">
-    <h2>Images in /image</h2>
-    <div class="grid" id="grid"></div>
-  </div>
-
-<script>
-async function getJSON(path){ const r=await fetch(path); return r.json(); }
-
-async function refreshStatus(){
-  try{
-    const j = await getJSON('/status');
-    const disp = j.display_ready ? `Display OK (${j.target_size[0]}x${j.target_size[1]})` : 'Display NOT READY';
-    const run = j.carousel.running ? 'Running' : 'Stopped';
-    const next = j.carousel.next_switch_at || '-';
-    document.getElementById('status').innerHTML =
-      `Status: ${disp} • Carousel: ${run} • Interval: ${j.carousel.minutes} min • Current: ${j.carousel.current_file || '-'} • Next: ${next}`;
-    document.getElementById('minutes').value = j.carousel.minutes;
-  }catch(e){ document.getElementById('status').textContent = 'Status error'; }
-}
-
-async function refreshList(){
-  try{
-    const j = await getJSON('/list');
-    const g = document.getElementById('grid'); g.innerHTML = '';
-    j.items.forEach(it=>{
-      const d = document.createElement('div'); d.className='card';
-      d.innerHTML = `
-        <a href="${it.url}" target="_blank"><img class="thumb" src="${it.url}" alt="${it.name}"></a>
-        <div style="font-size:12px;margin-top:6px">${it.name}</div>
-        <div class="row" style="margin-top:6px">
-          <button data-file="${it.name}" data-act="display">Display on Inky</button>
-          <button data-file="${it.name}" data-act="delete">Delete</button>
-        </div>`;
-      g.appendChild(d);
-    });
-    g.onclick = async (e)=>{
-      const btn = e.target.closest('button'); if(!btn) return;
-      const file = btn.dataset.file;
-      if(btn.dataset.act==='display'){
-        const r = await fetch('/display?file='+encodeURIComponent(file), {method:'POST'});
-        const j = await r.json();
-        document.getElementById('carMsg').textContent = j.ok ? 'Displayed' : (j.error || 'Error');
-        refreshStatus();
-      } else if (btn.dataset.act==='delete'){
-        if(!confirm('Delete this image?')) return;
-        const r = await fetch('/delete?file='+encodeURIComponent(file), {method:'POST'});
-        const j = await r.json();
-        document.getElementById('uploadMsg').textContent = j.ok ? 'Deleted' : (j.error || 'Error');
-        refreshList(); refreshStatus();
-      }
-    };
-  }catch(e){ /* ignore */ }
-}
-
-document.getElementById('uploadForm').onsubmit = async (e)=>{
-  e.preventDefault();
-  const fd = new FormData(e.target); // multiple files included
-  const r = await fetch('/upload', {method:'POST', body: fd});
-  const j = await r.json();
-  if (j.ok) {
-    document.getElementById('uploadMsg').textContent = `Uploaded ${j.saved.length} file(s)`;
-  } else if (j.saved && j.saved.length) {
-    document.getElementById('uploadMsg').textContent = `Partial: ${j.saved.length} saved, ${j.errors.length} failed`;
-  } else {
-    document.getElementById('uploadMsg').textContent = j.error || 'Upload error';
-  }
-  refreshList(); refreshStatus();
-};
-
-document.getElementById('startBtn').onclick = async ()=>{
-  const minutes = parseInt(document.getElementById('minutes').value,10);
-  const r = await fetch('/carousel/start?minutes='+minutes, {method:'POST'});
-  const j = await r.json();
-  document.getElementById('carMsg').textContent = j.ok ? 'Carousel started' : (j.error || 'Error');
-  refreshStatus();
-};
-document.getElementById('stopBtn').onclick = async ()=>{
-  const r = await fetch('/carousel/stop', {method:'POST'});
-  const j = await r.json();
-  document.getElementById('carMsg').textContent = j.ok ? 'Carousel stopped' : (j.error || 'Error');
-  refreshStatus();
-};
-
-refreshStatus(); refreshList();
-setInterval(refreshStatus, 5000);
-</script>
-</body>
-</html>
-"""
-
 class Handler(BaseHTTPRequestHandler):
     server_version = "InkyPhotoframe/1.3"
 
@@ -427,14 +299,18 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path == "/" or path == "/index.html":
-            self._send_html(INDEX_HTML)
+            self._serve_template("index.html")
             return
 
-        if path == "/status":
+        if path.startswith("/static/"):
+            self._serve_static(path)
+            return
+
+        if path in {"/status", "/api/status"}:
             self._json_status()
             return
 
-        if path == "/list":
+        if path in {"/list", "/api/images"}:
             self._json_list()
             return
 
@@ -449,23 +325,23 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
 
-        if path == "/upload":
+        if path in {"/upload", "/api/upload"}:
             self._handle_upload()
             return
 
-        if path == "/display":
+        if path in {"/display", "/api/display"}:
             self._handle_display(query)
             return
 
-        if path == "/delete":
+        if path in {"/delete", "/api/delete"}:
             self._handle_delete(query)
             return
 
-        if path == "/carousel/start":
+        if path in {"/carousel/start", "/api/carousel/start"}:
             self._carousel_start(query)
             return
 
-        if path == "/carousel/stop":
+        if path in {"/carousel/stop", "/api/carousel/stop"}:
             self._carousel_stop()
             return
 
@@ -613,6 +489,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)
 
@@ -621,6 +498,54 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _serve_template(self, name: str):
+        path = (TEMPLATE_DIR / name).resolve()
+        try:
+            template_root = TEMPLATE_DIR.resolve()
+        except FileNotFoundError:
+            template_root = TEMPLATE_DIR
+        if not str(path).startswith(str(template_root)):
+            self._send_json({"ok": False, "error": "Forbidden"}, 403)
+            return
+        if not path.exists():
+            self._send_json({"ok": False, "error": "Not found"}, 404)
+            return
+        try:
+            html_text = path.read_text("utf-8")
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+        self._send_html(html_text, 200)
+
+    def _serve_static(self, request_path: str):
+        rel = request_path[len("/static/"):]
+        safe_path = (STATIC_DIR / rel).resolve()
+        try:
+            static_root = STATIC_DIR.resolve()
+        except FileNotFoundError:
+            static_root = STATIC_DIR
+        if not str(safe_path).startswith(str(static_root)):
+            self._send_json({"ok": False, "error": "Forbidden"}, 403)
+            return
+        if not safe_path.exists() or not safe_path.is_file():
+            self._send_json({"ok": False, "error": "Not found"}, 404)
+            return
+        try:
+            with open(safe_path, "rb") as fh:
+                data = fh.read()
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+        mime, _ = mimetypes.guess_type(str(safe_path))
+        ctype = mime or "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "public, max-age=3600")
         self.end_headers()
         self.wfile.write(data)
 
