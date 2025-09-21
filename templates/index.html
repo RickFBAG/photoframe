@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <title>Inky Photoframe Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+  <div class="dashboard">
+    <header class="dashboard__header">
+      <div>
+        <h1>Inky Photoframe</h1>
+        <p class="dashboard__subtitle">Beheer en status voor jouw e-ink fotoframe</p>
+      </div>
+      <div class="dashboard__clock" id="clock" aria-live="polite">--:--</div>
+    </header>
+
+    <main class="dashboard__main">
+      <section class="panel panel--wide" aria-labelledby="status-heading">
+        <div class="panel__head">
+          <h2 id="status-heading">Systeemstatus</h2>
+          <button type="button" class="ghost-button" id="forceStatus">Ververs</button>
+        </div>
+        <div id="statusCard" class="status-card" aria-live="polite">Status laden…</div>
+      </section>
+
+      <section class="panel" aria-labelledby="carousel-heading">
+        <div class="panel__head">
+          <h2 id="carousel-heading">Carousel</h2>
+        </div>
+        <form id="carouselForm" class="form-grid">
+          <label class="form-grid__field">
+            <span>Minuten per foto</span>
+            <input id="minutesInput" name="minutes" type="number" min="1" step="1" value="5" inputmode="numeric">
+          </label>
+          <div class="button-row">
+            <button type="submit" class="action-button" data-action="start">Start</button>
+            <button type="button" class="ghost-button" data-action="stop">Stop</button>
+          </div>
+        </form>
+        <div id="carouselMessage" class="panel__messages" role="status"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="upload-heading">
+        <div class="panel__head">
+          <h2 id="upload-heading">Fotobeheer</h2>
+        </div>
+        <form id="uploadForm" class="upload" enctype="multipart/form-data">
+          <label class="upload__field">
+            <span>Bestanden toevoegen</span>
+            <input type="file" name="file" accept="image/*" multiple required>
+          </label>
+          <button type="submit" class="action-button">Uploaden</button>
+        </form>
+        <div id="uploadMessage" class="panel__messages" role="status"></div>
+      </section>
+
+      <section class="panel panel--gallery" aria-labelledby="gallery-heading">
+        <div class="panel__head">
+          <h2 id="gallery-heading">Galerij</h2>
+          <div class="panel__tools">
+            <button type="button" class="ghost-button" id="refreshGallery">Ververs lijst</button>
+          </div>
+        </div>
+        <div id="galleryMessage" class="panel__messages" role="status"></div>
+        <div id="imageGrid" class="image-grid" aria-live="polite"></div>
+        <p id="galleryEmpty" class="empty-state" hidden>Geen afbeeldingen gevonden. Upload een nieuwe serie om te starten.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="calendar-heading">
+        <div class="panel__head">
+          <h2 id="calendar-heading">Kalender</h2>
+        </div>
+        <div id="calendarWidget" class="calendar"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="notes-heading">
+        <div class="panel__head">
+          <h2 id="notes-heading">Notities &amp; hints</h2>
+        </div>
+        <ul id="systemNotes" class="notes-list" aria-live="polite">
+          <li>Gebruik het dashboard op hetzelfde netwerk als de Raspberry Pi.</li>
+          <li>Uploads worden automatisch bijgesneden voor het Inky-scherm.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="dashboard__footer">
+      <span>Versie 1.3</span>
+      <span>Inky Photoframe &mdash; geoptimaliseerd voor e-ink schermen</span>
+    </footer>
+  </div>
+
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
