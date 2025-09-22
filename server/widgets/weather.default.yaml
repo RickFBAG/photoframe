@@ -1,0 +1,15 @@
+location:
+  name: Amsterdam
+  latitude: 52.3676
+  longitude: 4.9041
+units:
+  temperature: celsius
+  wind: km/h
+provider:
+  endpoint: https://api.open-meteo.com/v1/forecast
+  forecast_days: 4
+  timezone: auto
+  daily:
+    - temperature_2m_max
+    - temperature_2m_min
+    - weathercode

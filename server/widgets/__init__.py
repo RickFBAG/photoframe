@@ -32,7 +32,11 @@ class WidgetDefinition:
         raise NotImplementedError
 
 
-class MessageWidget(WidgetDefinition):
+class WidgetBase(WidgetDefinition):
+    """Base class for widgets with shared helpers."""
+
+
+class MessageWidget(WidgetBase):
     def __init__(self) -> None:
         super().__init__(
             slug="message",
@@ -60,7 +64,7 @@ class MessageWidget(WidgetDefinition):
         return image
 
 
-class ClockWidget(WidgetDefinition):
+class ClockWidget(WidgetBase):
     def __init__(self) -> None:
         super().__init__(
             slug="clock",
@@ -119,4 +123,22 @@ def create_default_registry() -> WidgetRegistry:
     registry = WidgetRegistry()
     registry.register(MessageWidget())
     registry.register(ClockWidget())
+    try:
+        from .weather import WeatherWidget
+
+        registry.register(WeatherWidget())
+    except Exception:  # pragma: no cover - weather widget optional in minimal installs
+        pass
     return registry
+
+
+__all__ = [
+    "WidgetField",
+    "WidgetError",
+    "WidgetDefinition",
+    "WidgetBase",
+    "MessageWidget",
+    "ClockWidget",
+    "WidgetRegistry",
+    "create_default_registry",
+]
