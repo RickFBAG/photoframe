@@ -15,6 +15,7 @@ from PIL import Image, ImageOps
 from ..app import FileResponse, HTTPError, JsonResponse, Request, ServerContext
 from ..inky import display as inky_display
 from ..storage.files import ALLOWED_EXT, describe_image, list_images_sorted, save_image
+from ..image_processing import open_image_first_frame, resize_fill_inky
 
 STATE_LOCK = threading.RLock()
 CAROUSEL_RUNNING = False
@@ -114,42 +115,6 @@ def parse_multipart_files(request: Request, max_bytes: int = 200 * 1024 * 1024) 
     if not files:
         raise HTTPError(400, "No files found in 'file' field")
     return files
-
-
-def open_image_first_frame(buf: io.BytesIO) -> Image.Image:
-    buf.seek(0)
-    img = Image.open(buf)
-    try:
-        img = ImageOps.exif_transpose(img)
-    except Exception:
-        pass
-    if getattr(img, "is_animated", False):
-        try:
-            img.seek(0)
-        except Exception:
-            pass
-    return img
-
-
-def resize_fill_inky(img: Image.Image) -> Image.Image:
-    tw, th = inky_display.target_size()
-    if img.width < img.height:
-        img = img.transpose(Image.Transpose.ROTATE_90)
-
-    target_ratio = tw / th
-    w, h = img.width, img.height
-    src_ratio = w / h
-
-    if src_ratio > target_ratio:
-        new_w = int(h * target_ratio)
-        left = (w - new_w) // 2
-        img = img.crop((left, 0, left + new_w, h))
-    else:
-        new_h = int(w / target_ratio)
-        top = (h - new_h) // 2
-        img = img.crop((0, top, w, top + new_h))
-
-    return img.convert("RGB").resize((tw, th), Image.Resampling.LANCZOS)
 
 
 def _get_image_path(name: str) -> Path:
