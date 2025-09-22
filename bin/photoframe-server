@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENV_FILE=${ENV_FILE:-/etc/photoframe/photoframe.env}
+APP_HOME=${APP_HOME:-/opt/photoframe}
+APP_SOURCE_DIR=${APP_SOURCE_DIR:-$APP_HOME/app}
+VENV_DIR=${VENV_DIR:-$APP_HOME/venv}
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck source=/dev/null
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
+PHOTOF_HOST=${PHOTOF_HOST:-0.0.0.0}
+PHOTOF_PORT=${PHOTOF_PORT:-8080}
+PHOTOF_IMAGE_DIR=${PHOTOF_IMAGE_DIR:-/var/lib/photoframe/images}
+PHOTOF_ADMIN_TOKEN=${PHOTOF_ADMIN_TOKEN:-}
+PHOTOF_RATE_LIMIT=${PHOTOF_RATE_LIMIT:-30}
+PHOTOF_LOG_FILE=${PHOTOF_LOG_FILE:-/var/log/photoframe/photoframe.log}
+PHOTOF_LOG_LEVEL=${PHOTOF_LOG_LEVEL:-info}
+PHOTOF_EXTRA_ARGS=${PHOTOF_EXTRA_ARGS:-}
+
+cd "$APP_SOURCE_DIR"
+
+if [[ ! -x "$VENV_DIR/bin/python" ]]; then
+  echo "Kan $VENV_DIR/bin/python niet vinden" >&2
+  exit 1
+fi
+
+mkdir -p "$PHOTOF_IMAGE_DIR" 2>/dev/null || true
+touch "$PHOTOF_LOG_FILE" 2>/dev/null || true
+
+CMD=("$VENV_DIR/bin/python" -m server \
+  --host "$PHOTOF_HOST" \
+  --port "$PHOTOF_PORT" \
+  --image-dir "$PHOTOF_IMAGE_DIR" \
+  --rate-limit "$PHOTOF_RATE_LIMIT" \
+  --log-file "$PHOTOF_LOG_FILE" \
+  --log-level "$PHOTOF_LOG_LEVEL")
+
+if [[ -n "$PHOTOF_ADMIN_TOKEN" ]]; then
+  CMD+=("--admin-token=$PHOTOF_ADMIN_TOKEN")
+fi
+
+if [[ -n "$PHOTOF_EXTRA_ARGS" ]]; then
+  # shellcheck disable=SC2206
+  EXTRA=($PHOTOF_EXTRA_ARGS)
+  CMD+=("${EXTRA[@]}")
+fi
+
+exec "${CMD[@]}"

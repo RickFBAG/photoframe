@@ -1,0 +1,19 @@
+[Unit]
+Description=Inky Photoframe Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=photoframe
+Group=photoframe
+EnvironmentFile=/etc/photoframe/photoframe.env
+WorkingDirectory=/opt/photoframe/app
+ExecStart=/opt/photoframe/bin/photoframe-server
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=photoframe
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

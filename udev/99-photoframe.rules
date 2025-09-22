@@ -1,0 +1,3 @@
+SUBSYSTEM=="spidev", GROUP="photoframe", MODE="0660"
+SUBSYSTEM=="i2c-dev", GROUP="photoframe", MODE="0660"
+KERNEL=="fb*", GROUP="photoframe", MODE="0660"
