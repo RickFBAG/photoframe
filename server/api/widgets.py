@@ -40,11 +40,18 @@ class WidgetInfo(BaseModel):
     name: str
     description: str
     fields: List[WidgetFieldModel]
+    default_config: Dict[str, Any]
 
     @classmethod
     def from_widget(cls, widget: WidgetBase) -> "WidgetInfo":
         field_models = [WidgetFieldModel.from_definition(field) for field in widget.fields]
-        return cls(slug=widget.slug, name=widget.name, description=widget.description, fields=field_models)
+        return cls(
+            slug=widget.slug,
+            name=widget.name,
+            description=widget.description,
+            fields=field_models,
+            default_config=dict(widget.default_config),
+        )
 
 
 class WidgetListResponse(BaseModel):

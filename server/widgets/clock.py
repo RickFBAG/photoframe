@@ -1,70 +1,136 @@
 from __future__ import annotations
 
 import datetime as _dt
-from typing import Any, Mapping, TYPE_CHECKING
+import locale
+from contextlib import contextmanager
+from typing import Any, Mapping
 
-from PIL import Image, ImageFont
+from .base import WidgetBase, WidgetField
+from .surface import Surface
 
-from .base import Surface, WidgetBase, WidgetField
+__all__ = ["ClockWidget"]
 
-if TYPE_CHECKING:  # pragma: no cover
-    from ..app import AppState
+
+@contextmanager
+def _temporary_locale(name: str | None) -> Any:
+    try:
+        current = locale.setlocale(locale.LC_TIME)
+    except locale.Error:
+        current = None
+    applied = False
+    try:
+        if name:
+            try:
+                locale.setlocale(locale.LC_TIME, name)
+                applied = True
+            except locale.Error:
+                applied = False
+        yield applied
+    finally:
+        if current:
+            try:
+                locale.setlocale(locale.LC_TIME, current)
+            except locale.Error:
+                pass
 
 
 class ClockWidget(WidgetBase):
-    slug = "clock"
-    name = "Digitale klok"
-    description = "Toont de huidige tijd en datum."
-    fields = (
-        WidgetField(
-            name="format",
-            label="Formaat",
-            field_type="string",
-            default="%H:%M",
-            description="Datum/tijd notatie conform strftime.",
-        ),
-    )
-    default_config = {"format": "%H:%M"}
-    cache_ttl = 30.0
-    cache_stale_ttl = 120.0
+    def __init__(self) -> None:
+        super().__init__(
+            slug="clock",
+            name="Digitale klok",
+            description=(
+                "Toont de huidige tijd en datum. Kies voor 24-uurs- of 12-uursweergave en stel"
+                " de locale in voor datumformattering."
+            ),
+            fields=[
+                WidgetField(
+                    name="use_24h",
+                    label="24-uurs notatie",
+                    field_type="boolean",
+                    default=True,
+                    description="Schakel uit voor 12-uurs notatie met AM/PM-indicatie.",
+                ),
+                WidgetField(
+                    name="locale",
+                    label="Locale",
+                    field_type="string",
+                    default="nl_NL",
+                    description="Locale code voor datum en weeknummer (bijv. nl_NL of en_GB).",
+                ),
+            ],
+            default_config={"use_24h": True, "locale": "nl_NL"},
+        )
 
-    async def _fetch(self, config: Mapping[str, Any], state: "AppState" | None = None) -> Mapping[str, Any]:
-        fmt = str(config.get("format") or self.default_config["format"])
-        now = _dt.datetime.now()
-        return {
-            "time": now.strftime(fmt),
-            "date": now.strftime("%d %B %Y"),
-            "format": fmt,
-        }
+    def fetch(self, config: Mapping[str, Any]) -> _dt.datetime:
+        return _dt.datetime.now()
 
-    def render(self, surface: Surface, data: Mapping[str, Any]) -> Image.Image:
-        time_text = data.get("time", "")
-        date_text = data.get("date", "")
+    def draw(self, surface: Surface, data: _dt.datetime, config: Mapping[str, Any]) -> None:
+        now = data
+        use_24h = bool(config.get("use_24h", True))
+        locale_name = str(config.get("locale") or "")
 
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
+        time_format = "%H:%M" if use_24h else "%I:%M"
+        time_text = now.strftime(time_format)
 
-        time_bbox = surface.draw.textbbox((0, 0), time_text, font=font_large)
-        date_bbox = surface.draw.textbbox((0, 0), date_text, font=font_small)
+        with _temporary_locale(locale_name):
+            date_text = now.strftime("%A %d %B %Y")
+            week_number = now.strftime("%V")
+            meridiem = None if use_24h else now.strftime("%p")
 
-        if time_bbox is None:  # pragma: no cover - Pillow < 9 fallback
-            time_width = time_height = 0
-        else:
-            time_width = time_bbox[2] - time_bbox[0]
-            time_height = time_bbox[3] - time_bbox[1]
+        if date_text:
+            date_text = date_text[0].upper() + date_text[1:]
 
-        if date_bbox is None:  # pragma: no cover - Pillow < 9 fallback
-            date_width = date_height = 0
-        else:
-            date_width = date_bbox[2] - date_bbox[0]
-            date_height = date_bbox[3] - date_bbox[1]
+        secondary_parts = [date_text, f"week {week_number}"]
+        if meridiem:
+            secondary_parts.append(meridiem)
+        secondary_text = " · ".join(part for part in secondary_parts if part)
 
-        time_pos = ((surface.width - time_width) // 2, surface.height // 2 - time_height)
-        date_pos = ((surface.width - date_width) // 2, surface.height // 2 + 10)
+        left, top, right, bottom = surface.content_box
+        content_width = right - left
+        content_height = bottom - top
 
-        surface.draw.text(time_pos, time_text, fill="black", font=font_large)
-        surface.draw.text(date_pos, date_text, fill="black", font=font_small)
-        return surface.image
+        time_font = surface.fit_text(
+            time_text,
+            surface.fonts.monospace,
+            content_width,
+            max(content_height * 0.7, 48),
+            minimum_size=36,
+        )
+        _, time_height = surface.text_size(time_text, time_font)
 
+        secondary_font = None
+        secondary_height = 0
+        if secondary_text:
+            secondary_font = surface.fit_text(
+                secondary_text,
+                surface.fonts.sans,
+                content_width,
+                max(content_height - time_height - surface.theme.grid, content_height * 0.2, 24),
+                minimum_size=14,
+            )
+            _, secondary_height = surface.text_size(secondary_text, secondary_font)
 
-__all__ = ["ClockWidget"]
+        spacing = surface.theme.grid if secondary_text else 0
+        total_height = time_height + spacing + secondary_height
+        top_offset = (content_height - total_height) / 2
+
+        centre_x = (left + right) / 2
+        time_centre_y = top + top_offset + time_height / 2
+        surface.draw_text(
+            (centre_x, time_centre_y),
+            time_text,
+            font=time_font,
+            fill=surface.theme.primary,
+            anchor="mm",
+        )
+
+        if secondary_text and secondary_font:
+            secondary_centre_y = time_centre_y + time_height / 2 + spacing + secondary_height / 2
+            surface.draw_text(
+                (centre_x, secondary_centre_y),
+                secondary_text,
+                font=secondary_font,
+                fill=surface.theme.secondary,
+                anchor="mm",
+            )
