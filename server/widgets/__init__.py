@@ -20,7 +20,6 @@ __all__ = [
 
 
 def create_default_registry() -> WidgetRegistry:
-    registry = WidgetRegistry()
-    registry.register(MessageWidget())
-    registry.register(ClockWidget())
-    return registry
+    """Return a registry pre-populated with built-in widgets."""
+
+    return WidgetRegistry()
