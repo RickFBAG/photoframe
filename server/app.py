@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from . import cache
 from .inky import display as inky_display
 from .models.config import RuntimeConfig
 from .storage.files import ensure_image_dir
@@ -62,10 +63,19 @@ class ServerConfig:
     admin_token: Optional[str] = None
     rate_limit_per_minute: int = DEFAULT_ADMIN_RATE_LIMIT
     log_path: Optional[Path] = None
+    cache_config_path: Optional[Path] = None
 
 
 @dataclass
 class AppState:
+    """Container for FastAPI state shared across request handlers.
+
+    The caches are configured via a YAML file (``cache.yaml`` by default).
+    ``cache_settings`` exposes the normalised configuration while
+    ``caches`` provides a convenience API that bundles the in-memory, file
+    and SQLite backends for widget render results.
+    """
+
     config: ServerConfig
     templates: Jinja2Templates
     image_dir: Path
@@ -74,6 +84,9 @@ class AppState:
     runtime_config: RuntimeConfig
     rate_limiter: RateLimiter
     widget_registry: WidgetRegistry
+    cache_config_path: Path
+    cache_settings: cache.CacheSettings
+    caches: cache.CacheManager
     last_rendered: Optional[str] = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -82,6 +95,8 @@ class AppState:
         return self.config.log_path or (self.image_dir / "photoframe.log")
 
     def set_runtime_config(self, config: RuntimeConfig) -> None:
+        """Persist a new :class:`RuntimeConfig` to disk."""
+
         with self._lock:
             self.runtime_config = config
             payload = json.dumps(_model_dump(config), indent=2, ensure_ascii=False)
@@ -115,6 +130,12 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     runtime_config_path = config.image_dir / "config.json"
     runtime_config = _load_runtime_config(runtime_config_path)
 
+    cache_config_path = config.cache_config_path or (config.image_dir / "cache.yaml")
+    if not cache_config_path.is_absolute():
+        cache_config_path = (config.image_dir / cache_config_path).resolve()
+    cache_settings = cache.load_cache_settings(cache_config_path, base_dir=config.image_dir)
+    cache_manager = cache.create_cache_manager(cache_settings)
+
     limiter = RateLimiter(limit=config.rate_limit_per_minute, window_seconds=60)
     templates = Jinja2Templates(directory=str(template_dir))
     registry = create_default_registry()
@@ -133,6 +154,9 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         runtime_config=runtime_config,
         rate_limiter=limiter,
         widget_registry=registry,
+        cache_config_path=cache_config_path,
+        cache_settings=cache_settings,
+        caches=cache_manager,
     )
 
     @app.get("/", response_class=HTMLResponse)
