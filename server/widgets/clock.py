@@ -3,10 +3,13 @@ from __future__ import annotations
 import datetime as _dt
 import locale
 from contextlib import contextmanager
-from typing import Any, Mapping
+from typing import Any, Mapping, TYPE_CHECKING
 
 from .base import WidgetBase, WidgetField
 from .surface import Surface
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..app import AppState
 
 __all__ = ["ClockWidget"]
 
@@ -62,7 +65,12 @@ class ClockWidget(WidgetBase):
             default_config={"use_24h": True, "locale": "nl_NL"},
         )
 
-    def fetch(self, config: Mapping[str, Any]) -> _dt.datetime:
+    async def _fetch(
+        self,
+        config: Mapping[str, Any],
+        *,
+        state: "AppState" | None = None,
+    ) -> _dt.datetime:
         return _dt.datetime.now()
 
     def draw(self, surface: Surface, data: _dt.datetime, config: Mapping[str, Any]) -> None:

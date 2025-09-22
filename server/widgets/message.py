@@ -1,8 +1,12 @@
 from __future__ import annotations
-from typing import Mapping
+
+from typing import Mapping, TYPE_CHECKING
 
 from .base import WidgetBase, WidgetField
 from .surface import Surface
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..app import AppState
 
 __all__ = ["MessageWidget"]
 
@@ -26,7 +30,12 @@ class MessageWidget(WidgetBase):
             default_config={"text": "Photoframe"},
         )
 
-    def fetch(self, config: Mapping[str, str]) -> str:
+    async def _fetch(
+        self,
+        config: Mapping[str, str],
+        *,
+        state: "AppState" | None = None,
+    ) -> str:
         text = str(config.get("text") or "Photoframe")
         return text.strip() or "Photoframe"
 

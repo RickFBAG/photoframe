@@ -93,9 +93,9 @@ async def test_widget(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     config = payload.config or {}
-    data = await widget.fetch(config, state=state)
-    surface = Surface(inky_display.target_size())
-    image = widget.render(surface, data)
+    context = await widget.fetch(config, state=state)
+    surface = Surface(inky_display.target_size(), theme=context.theme)
+    image = widget.render(surface, context)
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     preview = base64.b64encode(buffer.getvalue()).decode("ascii")
