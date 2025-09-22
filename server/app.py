@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .inky import display as inky_display
+from .scheduler import PhotoFrameScheduler
 from .models.config import RuntimeConfig
 from .storage.files import ensure_image_dir
 from .widgets import WidgetRegistry, create_default_registry
@@ -75,6 +76,7 @@ class AppState:
     rate_limiter: RateLimiter
     widget_registry: WidgetRegistry
     last_rendered: Optional[str] = None
+    scheduler: PhotoFrameScheduler | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
@@ -134,6 +136,17 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         rate_limiter=limiter,
         widget_registry=registry,
     )
+
+    scheduler = PhotoFrameScheduler(app.state.photoframe)
+    app.state.photoframe.scheduler = scheduler
+
+    @app.on_event("startup")
+    async def _start_scheduler() -> None:
+        await scheduler.start()
+
+    @app.on_event("shutdown")
+    async def _stop_scheduler() -> None:
+        await scheduler.stop()
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request, state: AppState = Depends(get_app_state)) -> HTMLResponse:

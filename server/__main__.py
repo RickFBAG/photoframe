@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 from pathlib import Path
 from typing import Sequence
 
@@ -49,7 +50,18 @@ def main(argv: Sequence[str] | None = None) -> None:
         log_path=args.log_file,
     )
     app = create_app(config)
-    uvicorn.run(app, host=config.host, port=config.port, log_level=args.log_level)
+    scheduler = getattr(app.state, "photoframe", None)
+    scheduler = getattr(scheduler, "scheduler", None)
+    try:
+        uvicorn.run(app, host=config.host, port=config.port, log_level=args.log_level)
+    finally:
+        if scheduler is not None and getattr(scheduler, "started", False):
+            try:
+                asyncio.run(scheduler.stop())
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(scheduler.stop())
+                loop.close()
 
 
 if __name__ == "__main__":  # pragma: no cover
