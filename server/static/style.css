@@ -1,7 +1,9 @@
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "IBM Plex Sans", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   margin: 0;
   background: #ffffff;
+  color: #111111;
+  letter-spacing: 0.01em;
 }
 
 main.page {
@@ -12,11 +14,14 @@ main.page {
 
 h1 {
   margin: 0 0 8px 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .section {
   margin: 16px 0;
 }
+
 
 .section-news {
   border-top: 2px solid #000;
@@ -97,6 +102,107 @@ h1 {
   letter-spacing: 0.04em;
   color: #555;
   text-transform: uppercase;
+
+.weather-panel {
+  border: 2px solid #111111;
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 0 0 #111111;
+}
+
+.weather-panel.is-stale {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.weather-status {
+  font-variant: all-small-caps;
+  letter-spacing: 0.08em;
+  color: #333333;
+  margin-bottom: 12px;
+}
+
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.weather-current-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weather-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.weather-temp {
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.weather-description {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.weather-meta,
+.weather-updated {
+  color: #444444;
+  font-size: 14px;
+}
+
+.weather-controls {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.weather-controls button {
+  flex-shrink: 0;
+}
+
+.weather-forecast {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.weather-day {
+  border: 1px solid #333333;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weather-day .day-label {
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+}
+
+.weather-day .day-icon {
+  font-size: 26px;
+}
+
+.weather-day .day-temp {
+  font-size: 16px;
+}
+
+.weather-day .day-desc {
+  font-size: 14px;
+  color: #333333;
 }
 
 .row {
@@ -154,5 +260,61 @@ small {
 
   .news-list {
     grid-template-columns: 1fr;
+
+.calendar-status {
+  color: #666;
+  margin-bottom: 8px;
+  min-height: 1.2em;
+}
+
+.calendar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-list__item {
+  border-left: 4px solid #3a6ea5;
+  background: #f7f7f7;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.calendar-list__date {
+  font-weight: 600;
+}
+
+.calendar-list__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.calendar-list__meta {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.calendar-list__description {
+  font-size: 0.85rem;
+  color: #666;
+  white-space: pre-wrap;
+@media (max-width: 600px) {
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clock-value {
+    font-size: 2rem;
+  }
+
+  .clock-date {
+    font-size: 1.4rem;
+  
   }
 }

@@ -478,11 +478,12 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         return JSONResponse(payload)
 
     from .api import config as config_routes
-    from .api import logs, render, status, widgets
+    from .api import logs, render, status, weather, widgets
 
     app.include_router(status.router)
     app.include_router(render.router)
     app.include_router(config_routes.router)
+    app.include_router(weather.router)
     app.include_router(widgets.router)
     app.include_router(logs.router)
 
