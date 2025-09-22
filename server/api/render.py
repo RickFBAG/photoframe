@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 from PIL import Image, ImageOps
 
 from ..app import AppState, get_app_state
@@ -23,15 +23,15 @@ class RenderNowRequest(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict, description="Configuratie voor de gekozen widget")
     dry_run: bool = Field(False, description="Voer geen daadwerkelijke render uit")
 
-    @root_validator
-    def _validate_choice(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        image = values.get("image")
-        widget = values.get("widget")
+    @model_validator(mode="after")
+    def _validate_choice(self) -> "RenderNowRequest":
+        image = self.image
+        widget = self.widget
         if not image and not widget:
             raise ValueError("Geef een afbeelding of widget op")
         if image and widget:
             raise ValueError("Kies óf een afbeelding óf een widget")
-        return values
+        return self
 
 
 class RenderNowResponse(BaseModel):
