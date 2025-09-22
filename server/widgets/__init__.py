@@ -119,4 +119,18 @@ def create_default_registry() -> WidgetRegistry:
     registry = WidgetRegistry()
     registry.register(MessageWidget())
     registry.register(ClockWidget())
+    from .photos import PhotosWidget
+
+    registry.register(PhotosWidget())
     return registry
+
+
+__all__ = [
+    "WidgetField",
+    "WidgetError",
+    "WidgetDefinition",
+    "WidgetRegistry",
+    "MessageWidget",
+    "ClockWidget",
+    "create_default_registry",
+]
