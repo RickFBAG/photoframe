@@ -39,6 +39,7 @@ async def update_config(
 
     rotation_changed = new_config.auto_rotate != current.auto_rotate
     state.set_runtime_config(new_config)
+    state.carousel.set_minutes(new_config.carousel_minutes)
 
     if rotation_changed:
         inky_display.set_rotation(new_config.auto_rotate)

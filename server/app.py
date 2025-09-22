@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import cache
+from .carousel import CarouselState
 from .cache import CacheStore
 from .inky import display as inky_display
 from .models.config import RuntimeConfig
@@ -319,6 +320,7 @@ class AppState:
     cache_config_path: Path
     cache_settings: cache.CacheSettings
     caches: cache.CacheManager
+    carousel: CarouselState
     last_rendered: Optional[str] = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -367,6 +369,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         cache_config_path = (config.image_dir / cache_config_path).resolve()
     cache_settings = cache.load_cache_settings(cache_config_path, base_dir=config.image_dir)
     cache_manager = cache.create_cache_manager(cache_settings)
+    carousel_state = CarouselState(minutes=runtime_config.carousel_minutes)
 
     limiter = RateLimiter(limit=config.rate_limit_per_minute, window_seconds=60)
     templates = Jinja2Templates(directory=str(template_dir))
@@ -391,6 +394,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         cache_config_path=cache_config_path,
         cache_settings=cache_settings,
         caches=cache_manager,
+        carousel=carousel_state,
     )
 
     @app.get("/", response_class=HTMLResponse)
