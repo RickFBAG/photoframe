@@ -11,7 +11,7 @@ from PIL import Image, ImageOps
 
 from ..app import AppState, get_app_state
 from ..inky import display as inky_display
-from ..widgets import WidgetError
+from ..widgets import Surface, WidgetError
 from .dependencies import admin_guard
 
 router = APIRouter(tags=["render"])
@@ -73,7 +73,9 @@ async def render_now(
         else:
             widget = state.widget_registry.get(payload.widget or "")
             target_size = inky_display.target_size()
-            image = widget.render(payload.config or {}, target_size)
+            data = await widget.fetch(payload.config or {}, state=state)
+            surface = Surface(target_size)
+            image = widget.render(surface, data)
             identifier = widget.slug
             source = "widget"
     except WidgetError as exc:

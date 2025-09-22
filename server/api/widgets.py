@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from ..app import AppState, get_app_state
 from ..inky import display as inky_display
-from ..widgets import WidgetBase, WidgetError, WidgetField
+from ..widgets import Surface, WidgetBase, WidgetError, WidgetField
 from .dependencies import admin_guard
 
 router = APIRouter(tags=["widgets"])
@@ -93,7 +93,9 @@ async def test_widget(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     config = payload.config or {}
-    image = widget.render(config, inky_display.target_size())
+    data = await widget.fetch(config, state=state)
+    surface = Surface(inky_display.target_size())
+    image = widget.render(surface, data)
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     preview = base64.b64encode(buffer.getvalue()).decode("ascii")

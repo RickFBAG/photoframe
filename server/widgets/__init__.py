@@ -1,16 +1,15 @@
 from __future__ import annotations
-
-from .base import WidgetBase, WidgetError, WidgetField, WidgetRegistry
+from .base import Surface, WidgetBase, WidgetError, WidgetField, WidgetRegistry
 from .clock import ClockWidget
 from .message import MessageWidget
 from .surface import Surface, Theme
 
 __all__ = [
+    "Surface",
     "WidgetBase",
     "WidgetError",
     "WidgetField",
     "WidgetRegistry",
-    "Surface",
     "Theme",
     "ClockWidget",
     "MessageWidget",
