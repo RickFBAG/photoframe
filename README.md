@@ -1,3 +1,6 @@
+To active virtual environment use: source /home/rick/.venvs/photoframe/bin/activate
+
+
 # Inky Photoframe Dashboard
 
 Een lichtgewicht dashboard voor het beheren van de Inky Photoframe fotocarrousel op een Raspberry Pi. De webinterface is geoptimaliseerd voor e-ink schermen (hoog contrast, beperkte kleuren) en draait zonder externe frameworks zodat alles responsief blijft op een Pi Zero.
