@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 
 from ..app import AppState, get_app_state
-from ..inky import display as inky_display
+from ..config import ConfigError, ConfigValidationError, deep_merge
 from ..models import ConfigResponse, RuntimeConfig, RuntimeConfigUpdate
 from .dependencies import admin_guard
 
@@ -31,16 +32,20 @@ async def update_config(
     current = state.runtime_config
     current_data = _model_dump(current)
     update_data = _model_dump(payload, exclude_unset=True)
-    merged = {**current_data, **update_data}
-    new_config = RuntimeConfig(**merged)
+    merged = deep_merge(current_data, update_data)
 
-    if new_config.default_widget and new_config.default_widget not in state.widget_registry:
+    try:
+        new_config = RuntimeConfig(**merged)
+    except ValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+    default_widget = new_config.widgets.default
+    if default_widget and default_widget not in state.widget_registry:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Onbekende widget")
 
-    rotation_changed = new_config.auto_rotate != current.auto_rotate
-    state.set_runtime_config(new_config)
-
-    if rotation_changed:
-        inky_display.set_rotation(new_config.auto_rotate)
+    try:
+        state.set_runtime_config(new_config)
+    except (ConfigError, ConfigValidationError) as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
     return ConfigResponse(config=new_config)

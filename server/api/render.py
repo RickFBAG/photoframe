@@ -6,10 +6,11 @@ from typing import Any, Dict, Optional
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field
 from PIL import Image, ImageOps
 
 from ..app import AppState, get_app_state
+from ..config import deep_merge
 from ..inky import display as inky_display
 from ..widgets import WidgetError
 from .dependencies import admin_guard
@@ -17,21 +18,17 @@ from .dependencies import admin_guard
 router = APIRouter(tags=["render"])
 
 
+def _model_dump(model: Any) -> Dict[str, Any]:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()  # type: ignore[no-any-return]
+    return model.dict()  # type: ignore[no-any-return]
+
+
 class RenderNowRequest(BaseModel):
     image: Optional[str] = Field(default=None, description="Naam van de afbeelding in de galerij")
     widget: Optional[str] = Field(default=None, description="Widget slug die gerenderd moet worden")
     config: Dict[str, Any] = Field(default_factory=dict, description="Configuratie voor de gekozen widget")
     dry_run: bool = Field(False, description="Voer geen daadwerkelijke render uit")
-
-    @root_validator
-    def _validate_choice(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        image = values.get("image")
-        widget = values.get("widget")
-        if not image and not widget:
-            raise ValueError("Geef een afbeelding of widget op")
-        if image and widget:
-            raise ValueError("Kies óf een afbeelding óf een widget")
-        return values
 
 
 class RenderNowResponse(BaseModel):
@@ -65,15 +62,26 @@ async def render_now(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Display niet beschikbaar")
 
     try:
+        if payload.image and payload.widget:
+            raise ValueError("Kies óf een afbeelding óf een widget")
+
         if payload.image:
             path = _resolve_image(payload.image, state)
             image = _load_image(path)
             identifier = path.name
             source = "image"
         else:
-            widget = state.widget_registry.get(payload.widget or "")
+            slug = payload.widget or state.runtime_config.widgets.default
+            if not slug:
+                raise ValueError("Geef een afbeelding of widget op")
+            widget = state.widget_registry.get(slug)
             target_size = inky_display.target_size()
-            image = widget.render(payload.config or {}, target_size)
+            runtime_overrides = state.runtime_config.widgets.overrides.get(widget.slug, {})
+            base_overrides = dict(runtime_overrides) if isinstance(runtime_overrides, dict) else dict(runtime_overrides or {})
+            widget_config = deep_merge(base_overrides, payload.config or {})
+            widget_config["theme"] = _model_dump(state.runtime_config.theme)
+            widget_config["layout"] = _model_dump(state.runtime_config.layout)
+            image = widget.render(widget_config, target_size)
             identifier = widget.slug
             source = "widget"
     except WidgetError as exc:
