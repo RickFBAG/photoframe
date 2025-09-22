@@ -1,6 +1,9 @@
 const WEATHER_CACHE_KEY = 'weather:last-response';
 const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10 minuten
 const WEATHER_CACHE_MAX_AGE = WEATHER_CACHE_TTL * 3;
+const STATUS_REFRESH_INTERVAL = 5000;
+
+let statusRefreshTimerId = null;
 
 const WEATHER_CODES = {
   0: { icon: '☀', label: 'Helder' },
@@ -243,6 +246,14 @@ async function refreshStatus() {
   } catch (err) {
     document.getElementById('status').textContent = 'Status error';
   }
+}
+
+function ensureStatusPolling() {
+  if (statusRefreshTimerId !== null) {
+    return statusRefreshTimerId;
+  }
+  statusRefreshTimerId = setInterval(refreshStatus, STATUS_REFRESH_INTERVAL);
+  return statusRefreshTimerId;
 }
 
 async function refreshList() {
@@ -492,7 +503,8 @@ class NewsBoard {
       }
     }
   }
-=======
+}
+
 function parseDateValue(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -655,6 +667,7 @@ async function refreshCalendar() {
   } catch (err) {
     statusEl.textContent = err.message || 'Kalender synchronisatie mislukt';
   }
+}
 
 function getISOWeekString(date) {
   const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -723,10 +736,10 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshStatus();
   refreshList();
   refreshCalendar();
-  setInterval(refreshStatus, 5000);
+  ensureStatusPolling();
   setInterval(refreshCalendar, 300000);
   updateClock();
-  setInterval(refreshStatus, 5000);
+  setInterval(updateClock, 60000);
 
   const newsRoot = document.getElementById('newsBoard');
   if (newsRoot) {
