@@ -1,12 +1,31 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, Generic, Hashable, Optional, TypeVar
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Dict, Generic, Hashable, MutableMapping, Optional, TypeVar
 
-__all__ = ["CacheStore", "CacheEntry"]
+from .files import FilesCache
+from .memory import MemoryCache
+from .models import CacheSettings
+from .sqlite import SqliteCache
+
+try:  # pragma: no cover - optional dependency
+    import yaml
+except Exception:  # pragma: no cover - fall back to JSON-only mode
+    yaml = None  # type: ignore[assignment]
+
+__all__ = [
+    "CacheEntry",
+    "CacheManager",
+    "CacheStore",
+    "CacheSettings",
+    "create_cache_manager",
+    "load_cache_settings",
+]
 
 LOGGER = logging.getLogger(__name__)
 
@@ -141,3 +160,142 @@ class CacheStore:
         cache = self._caches.get(namespace)
         if cache:
             cache.clear()
+
+
+def _parse_cache_config(text: str, suffix: str) -> Dict[str, Any]:
+    """Parse a cache configuration file into a mapping."""
+
+    if not text.strip():
+        return {}
+    suffix = suffix.lower()
+    if suffix == ".json":
+        return json.loads(text)
+    if suffix in {".yaml", ".yml"}:
+        if yaml is None:  # pragma: no cover - dependency missing
+            raise RuntimeError("YAML configuration requires PyYAML to be installed")
+        data = yaml.safe_load(text)  # type: ignore[no-untyped-call]
+        return dict(data or {})
+    # Fallback: try JSON first, then YAML when available.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        if yaml is None:
+            raise
+        data = yaml.safe_load(text)  # type: ignore[no-untyped-call]
+        return dict(data or {})
+
+
+def load_cache_settings(path: Path | str, base_dir: Path | str) -> CacheSettings:
+    """Load :class:`CacheSettings` from ``path``.
+
+    ``path`` may point to a YAML or JSON configuration file. When the file is
+    missing or empty the default cache settings are returned.
+    """
+
+    config_path = Path(path)
+    base_dir = Path(base_dir)
+    data: Optional[Dict[str, Any]] = None
+    if config_path.exists():
+        try:
+            text = config_path.read_text(encoding="utf-8")
+            data = _parse_cache_config(text, config_path.suffix)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.warning("Failed to load cache configuration from %s", config_path, exc_info=exc)
+            data = {}
+        config_dir = config_path.parent
+    else:
+        config_dir = base_dir
+    return CacheSettings.from_mapping(data, base_dir=base_dir, config_dir=config_dir)
+
+
+class CacheManager:
+    """Coordinate the individual cache backends used by the application."""
+
+    def __init__(self, memory: MemoryCache, files: FilesCache, sqlite: SqliteCache) -> None:
+        self.memory = memory
+        self.files = files
+        self.sqlite = sqlite
+
+    def store(
+        self,
+        namespace: str,
+        key: str,
+        payload: bytes,
+        *,
+        ttl: Optional[int] = None,
+        metadata: Optional[MutableMapping[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Store a payload in all enabled cache backends."""
+
+        stored: Dict[str, Any] = {}
+        meta = dict(metadata or {})
+        if self.memory.enabled:
+            stored["memory"] = self.memory.store(namespace, key, payload, ttl=ttl, metadata=dict(meta))
+        if self.files.enabled:
+            stored["files"] = self.files.store(namespace, key, payload, ttl=ttl, metadata=dict(meta))
+        if self.sqlite.enabled:
+            stored["sqlite"] = self.sqlite.store(namespace, key, payload, ttl=ttl, metadata=dict(meta))
+        return stored
+
+    def get(self, namespace: str, key: str) -> Any:
+        """Return the first available cache entry for ``namespace``/``key``."""
+
+        if self.memory.enabled:
+            entry = self.memory.get(namespace, key)
+            if entry is not None:
+                return entry
+        if self.files.enabled:
+            entry = self.files.get(namespace, key)
+            if entry is not None:
+                return entry
+        if self.sqlite.enabled:
+            entry = self.sqlite.get(namespace, key)
+            if entry is not None:
+                return entry
+        return None
+
+    def read(self, namespace: str, key: str) -> Optional[bytes]:
+        """Return the cached payload as raw bytes if available."""
+
+        if self.memory.enabled:
+            entry = self.memory.get(namespace, key)
+            if entry is not None:
+                payload = entry.payload
+                if isinstance(payload, (bytes, bytearray)):
+                    return bytes(payload)
+        if self.files.enabled:
+            payload = self.files.read(namespace, key)
+            if payload is not None:
+                return payload
+        if self.sqlite.enabled:
+            payload = self.sqlite.read(namespace, key)
+            if payload is not None:
+                return payload
+        return None
+
+    def invalidate(self, namespace: str, key: Optional[str] = None) -> int:
+        """Invalidate cached entries across all backends."""
+
+        removed = 0
+        removed += self.memory.invalidate(namespace, key)
+        removed += self.files.invalidate(namespace, key)
+        removed += self.sqlite.invalidate(namespace, key)
+        return removed
+
+    def cleanup(self) -> int:
+        """Trigger cleanup/expiry checks on all caches."""
+
+        purged = 0
+        purged += self.memory.cleanup()
+        purged += self.files.cleanup()
+        purged += self.sqlite.cleanup()
+        return purged
+
+
+def create_cache_manager(settings: CacheSettings) -> CacheManager:
+    """Construct a :class:`CacheManager` from :class:`CacheSettings`."""
+
+    memory_cache = MemoryCache(settings.memory)
+    files_cache = FilesCache(settings.files)
+    sqlite_cache = SqliteCache(settings.sqlite)
+    return CacheManager(memory_cache, files_cache, sqlite_cache)

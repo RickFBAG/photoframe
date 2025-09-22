@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from . import cache
 from .cache import CacheStore
 from .inky import display as inky_display
 from .models.config import RuntimeConfig
@@ -139,8 +140,8 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
 
     limiter = RateLimiter(limit=config.rate_limit_per_minute, window_seconds=60)
     templates = Jinja2Templates(directory=str(template_dir))
-    cache = CacheStore()
-    registry = WidgetRegistry(cache=cache)
+    cache_store = CacheStore()
+    registry = WidgetRegistry(cache=cache_store)
 
     inky_display.set_rotation(runtime_config.auto_rotate)
 
@@ -155,7 +156,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         runtime_config_path=runtime_config_path,
         runtime_config=runtime_config,
         rate_limiter=limiter,
-        cache=cache,
+        cache=cache_store,
         widget_registry=registry,
         cache_config_path=cache_config_path,
         cache_settings=cache_settings,
