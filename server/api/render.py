@@ -73,9 +73,9 @@ async def render_now(
         else:
             widget = state.widget_registry.get(payload.widget or "")
             target_size = inky_display.target_size()
-            data = await widget.fetch(payload.config or {}, state=state)
-            surface = Surface(target_size)
-            image = widget.render(surface, data)
+            context = await widget.fetch(payload.config or {}, state=state)
+            surface = Surface(target_size, theme=context.theme)
+            image = widget.render(surface, context)
             identifier = widget.slug
             source = "widget"
     except WidgetError as exc:
