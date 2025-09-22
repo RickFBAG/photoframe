@@ -185,7 +185,7 @@ def _parse_cache_config(text: str, suffix: str) -> Dict[str, Any]:
         return dict(data or {})
 
 
-def load_cache_settings(path: Path | str, base_dir: Path | str) -> CacheSettings:
+def load_cache_settings(path: Path, base_dir: Path) -> CacheSettings:
     """Load :class:`CacheSettings` from ``path``.
 
     ``path`` may point to a YAML or JSON configuration file. When the file is
