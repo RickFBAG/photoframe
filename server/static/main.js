@@ -62,6 +62,37 @@ async function refreshList() {
   }
 }
 
+function getISOWeekString(date) {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - dayNumber);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil(((target - yearStart) / 86400000 + 1) / 7);
+  return `${target.getUTCFullYear()}-W${String(weekNumber).padStart(2, '0')}`;
+}
+
+function updateClock() {
+  const clockTime = document.getElementById('clockTime');
+  const clockDate = document.getElementById('clockDate');
+  const clockWeek = document.getElementById('clockWeek');
+  if (!clockTime || !clockDate || !clockWeek) return;
+
+  const now = new Date();
+  const locale = navigator.language || undefined;
+  const time = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  const date = now.toLocaleDateString(locale, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const week = getISOWeekString(now);
+
+  clockTime.textContent = time;
+  clockDate.textContent = date;
+  clockWeek.textContent = week;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const uploadForm = document.getElementById('uploadForm');
   uploadForm.addEventListener('submit', async (event) => {
@@ -97,5 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   refreshStatus();
   refreshList();
+  updateClock();
   setInterval(refreshStatus, 5000);
+  setInterval(updateClock, 60000);
 });
