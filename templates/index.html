@@ -25,6 +25,19 @@
         <div id="statusCard" class="status-card" aria-live="polite">Status laden…</div>
       </section>
 
+      <section class="panel panel--wide" aria-labelledby="preview-heading">
+        <div class="panel__head">
+          <h2 id="preview-heading">Laatste render preview</h2>
+          <button type="button" class="ghost-button" id="refreshPreview">Ververs</button>
+        </div>
+        <figure id="previewPanel" class="preview" data-layout="default" data-theme="ink">
+          <div class="preview__frame">
+            <img src="" alt="Voorbeeld van de volgende schermrender" class="preview__image" loading="lazy">
+          </div>
+          <figcaption id="previewMeta" class="preview__meta">Preview laden…</figcaption>
+        </figure>
+      </section>
+
       <section class="panel" aria-labelledby="carousel-heading">
         <div class="panel__head">
           <h2 id="carousel-heading">Carousel</h2>

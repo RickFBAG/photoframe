@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .inky import display as inky_display
+from .rendering import PreviewRenderer
 from .models.config import RuntimeConfig
 from .storage.files import ensure_image_dir
 from .widgets import WidgetRegistry, create_default_registry
@@ -75,6 +76,7 @@ class AppState:
     rate_limiter: RateLimiter
     widget_registry: WidgetRegistry
     last_rendered: Optional[str] = None
+    preview_renderer: PreviewRenderer = field(default_factory=PreviewRenderer)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     @property
@@ -118,6 +120,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     limiter = RateLimiter(limit=config.rate_limit_per_minute, window_seconds=60)
     templates = Jinja2Templates(directory=str(template_dir))
     registry = create_default_registry()
+    preview_renderer = PreviewRenderer()
 
     inky_display.set_rotation(runtime_config.auto_rotate)
 
@@ -133,6 +136,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         runtime_config=runtime_config,
         rate_limiter=limiter,
         widget_registry=registry,
+        preview_renderer=preview_renderer,
     )
 
     @app.get("/", response_class=HTMLResponse)

@@ -52,5 +52,7 @@ export const endpoints = {
   display: `${BASE}/display`,
   delete: `${BASE}/delete`,
   carouselStart: `${BASE}/carousel/start`,
-  carouselStop: `${BASE}/carousel/stop`
+  carouselStop: `${BASE}/carousel/stop`,
+  previewImage: '/preview',
+  previewMeta: '/preview/meta'
 };

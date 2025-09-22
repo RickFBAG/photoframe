@@ -4,6 +4,7 @@ import { UploadManager } from './components/uploadManager.js';
 import { GalleryManager } from './components/galleryManager.js';
 import { CalendarWidget } from './components/calendarWidget.js';
 import { SystemNotes } from './components/systemNotes.js';
+import { PreviewPanel } from './components/previewPanel.js';
 
 function initClock(clockEl) {
   if (!clockEl) return;
@@ -29,6 +30,11 @@ ready(() => {
     document.querySelector('#carouselForm'),
     document.querySelector('#carouselMessage')
   );
+  const preview = new PreviewPanel(
+    document.querySelector('#previewPanel'),
+    document.querySelector('#previewMeta'),
+    document.querySelector('#refreshPreview')
+  );
   const gallery = new GalleryManager(
     document.querySelector('#imageGrid'),
     document.querySelector('#galleryEmpty'),
@@ -44,6 +50,7 @@ ready(() => {
   initClock(document.querySelector('#clock'));
   calendar.render();
   statusCard.start();
+  preview.start();
   gallery.load();
 
   document.querySelector('#forceStatus')?.addEventListener('click', () => statusCard.refresh());
@@ -55,8 +62,10 @@ ready(() => {
     carousel.sync(detail);
     gallery.markCurrent(detail?.carousel?.current_file || null);
     notes.setStatus(detail);
+    preview.updateFromStatus(detail);
   });
   document.addEventListener('gallery:updated', (event) => {
     notes.setGalleryCount(event.detail?.count ?? 0);
+    preview.refresh(true);
   });
 });
