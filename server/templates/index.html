@@ -4,6 +4,26 @@
       <div id="status"><small>Loading status…</small></div>
     </div>
 
+    <div class="section weather-section">
+      <h2>Weer</h2>
+      <div class="weather-panel" id="weatherPanel" data-lat="52.37" data-lon="4.89" data-days="5">
+        <div class="weather-status" role="status">Weersinformatie wordt geladen…</div>
+        <div class="weather-current" aria-live="polite">
+          <div class="weather-icon" aria-hidden="true">☁</div>
+          <div class="weather-current-details">
+            <div class="weather-temp"></div>
+            <div class="weather-description"></div>
+            <div class="weather-meta"></div>
+          </div>
+        </div>
+        <div class="weather-controls row">
+          <button id="weatherRefresh" type="button">Ververs weer</button>
+          <small class="weather-updated" aria-live="polite">Laatst bijgewerkt: —</small>
+        </div>
+        <ul class="weather-forecast" aria-label="Meerdaagse verwachting"></ul>
+      </div>
+    </div>
+
     <div class="section">
       <h2>Upload</h2>
       <form id="uploadForm">
