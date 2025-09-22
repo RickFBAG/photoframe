@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Tuple
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..app import AppState, get_app_state
 from ..inky import display as inky_display
-from ..storage.files import describe_image, list_images_sorted
+from ..storage.files import list_images_sorted
 
 router = APIRouter(tags=["status"])
 
@@ -17,14 +18,6 @@ class HealthResponse(BaseModel):
     display_ready: bool
     target_size: Tuple[int, int]
     image_count: int
-
-
-class PreviewResponse(BaseModel):
-    available: bool
-    file: Optional[str] = None
-    url: Optional[str] = None
-    size: Optional[int] = None
-    created_at: Optional[str] = None
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -37,18 +30,10 @@ async def health(state: AppState = Depends(get_app_state)) -> HealthResponse:
         image_count=len(files),
     )
 
-
-@router.get("/preview", response_model=PreviewResponse)
-async def preview(state: AppState = Depends(get_app_state)) -> PreviewResponse:
-    files = list(list_images_sorted(state.image_dir))
-    if not files:
-        return PreviewResponse(available=False)
-    latest = files[-1]
-    description = describe_image(latest)
-    return PreviewResponse(
-        available=True,
-        file=description["name"],
-        url=description["url"],
-        size=description["size"],
-        created_at=description["created_at"],
-    )
+@router.get("/preview")
+async def preview(state: AppState = Depends(get_app_state)) -> Response:
+    latest = state.renderer.latest_output()
+    if latest and latest.exists():
+        headers = {"Cache-Control": "no-store"}
+        return FileResponse(latest, media_type="image/png", filename=latest.name, headers=headers)
+    return Response(status_code=status.HTTP_404_NOT_FOUND)

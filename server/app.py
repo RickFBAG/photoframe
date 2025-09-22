@@ -16,6 +16,7 @@ from .inky import display as inky_display
 from .models.config import RuntimeConfig
 from .storage.files import ensure_image_dir
 from .widgets import WidgetRegistry, create_default_registry
+from .renderer import RendererPipeline
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8080
@@ -74,6 +75,7 @@ class AppState:
     runtime_config: RuntimeConfig
     rate_limiter: RateLimiter
     widget_registry: WidgetRegistry
+    renderer: RendererPipeline
     last_rendered: Optional[str] = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -118,6 +120,11 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     limiter = RateLimiter(limit=config.rate_limit_per_minute, window_seconds=60)
     templates = Jinja2Templates(directory=str(template_dir))
     registry = create_default_registry()
+    renderer = RendererPipeline(
+        image_dir=config.image_dir,
+        static_dir=static_dir,
+        target_size=inky_display.target_size(),
+    )
 
     inky_display.set_rotation(runtime_config.auto_rotate)
 
@@ -133,6 +140,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         runtime_config=runtime_config,
         rate_limiter=limiter,
         widget_registry=registry,
+        renderer=renderer,
     )
 
     @app.get("/", response_class=HTMLResponse)
