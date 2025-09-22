@@ -177,7 +177,7 @@ def _carousel_worker() -> None:
             with open(path, "rb") as fh:
                 img = Image.open(fh)
                 img = ImageOps.exif_transpose(img).convert("RGB")
-            inky_display.display_image(img)
+            inky_display.push_frame(img)
         except Exception as exc:
             print(f"Display error for {path.name}: {exc}", file=sys.stderr)
         minutes = max(1, int(CAROUSEL_MINUTES))
@@ -291,7 +291,7 @@ def display_endpoint(request: Request, params: Dict[str, str]) -> JsonResponse:
         with open(path, "rb") as fh:
             img = Image.open(fh)
             img = ImageOps.exif_transpose(img).convert("RGB")
-        inky_display.display_image(img)
+        inky_display.push_frame(img)
         with STATE_LOCK:
             files = list_images_sorted(request.context.image_dir)
             global CURRENT_INDEX

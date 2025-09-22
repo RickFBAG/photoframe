@@ -82,7 +82,7 @@ async def render_now(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not payload.dry_run:
-        inky_display.display_image(image)
+        inky_display.push_frame(image)
         state.last_rendered = identifier
 
     return RenderNowResponse(ok=True, source=source, identifier=identifier, dry_run=payload.dry_run)
