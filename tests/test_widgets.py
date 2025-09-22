@@ -16,6 +16,7 @@ if "server" not in sys.modules:
     server_module.__spec__ = ModuleSpec("server", loader=None, is_package=True)
     sys.modules["server"] = server_module
 
+from server.cache import CacheStore
 from server.widgets import Surface, WidgetRegistry, WidgetRenderContext
 from server.widgets.message import MessageWidget
 
@@ -35,6 +36,15 @@ def test_registry_fetch_and_render() -> None:
             assert image.size == (400, 300)
 
     asyncio.run(run())
+
+
+def test_registry_with_cache_discovers_builtin_widgets() -> None:
+    cache = CacheStore()
+    registry = WidgetRegistry(cache=cache)
+
+    slugs = {widget.slug for widget in registry.list()}
+
+    assert {"message", "clock"}.issubset(slugs)
 
 
 def test_message_widget_uses_default_text() -> None:
