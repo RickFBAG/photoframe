@@ -1,7 +1,9 @@
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "IBM Plex Sans", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   margin: 0;
   background: #ffffff;
+  color: #111111;
+  letter-spacing: 0.01em;
 }
 
 main.page {
@@ -12,51 +14,114 @@ main.page {
 
 h1 {
   margin: 0 0 8px 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .section {
   margin: 16px 0;
 }
 
-.clock-section {
-  border: 2px solid #000;
-  border-radius: 12px;
-  background: #fff;
-  padding: 20px;
+.weather-panel {
+  border: 2px solid #111111;
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 0 0 #111111;
 }
 
-.clock-display {
+.weather-panel.is-stale {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.weather-status {
+  font-variant: all-small-caps;
+  letter-spacing: 0.08em;
+  color: #333333;
+  margin-bottom: 12px;
+}
+
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.weather-current-details {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  color: #000;
+  gap: 4px;
 }
 
-.clock-row {
-  display: flex;
+.weather-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.weather-temp {
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.weather-description {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.weather-meta,
+.weather-updated {
+  color: #444444;
+  font-size: 14px;
+}
+
+.weather-controls {
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+}
+
+.weather-controls button {
+  flex-shrink: 0;
+}
+
+.weather-forecast {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
 }
 
-.clock-label {
-  font-size: 0.95rem;
-  text-transform: uppercase;
+.weather-day {
+  border: 1px solid #333333;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weather-day .day-label {
+  font-variant: small-caps;
   letter-spacing: 0.08em;
-  color: #111;
-  font-weight: 600;
 }
 
-.clock-value {
-  font-size: 2.4rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #000;
+.weather-day .day-icon {
+  font-size: 26px;
 }
 
-.clock-date {
-  font-size: 1.6rem;
-  line-height: 1.3;
+.weather-day .day-temp {
+  font-size: 16px;
+}
+
+.weather-day .day-desc {
+  font-size: 14px;
+  color: #333333;
 }
 
 .row {
