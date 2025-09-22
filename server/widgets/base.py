@@ -119,4 +119,14 @@ def create_default_registry() -> WidgetRegistry:
     registry = WidgetRegistry()
     registry.register(MessageWidget())
     registry.register(ClockWidget())
+
+    # Import lazily to avoid circular imports during module initialization.
+    try:
+        from .calendar import CalendarWidget
+    except ImportError:  # pragma: no cover - defensive fallback when optional deps missing
+        CalendarWidget = None
+
+    if CalendarWidget is not None:
+        registry.register(CalendarWidget())
+
     return registry
