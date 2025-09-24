@@ -1,57 +1,37 @@
-from __future__ import annotations
+from datetime import datetime
 
-import asyncio
-import sys
-import types
-from importlib.machinery import ModuleSpec
-from pathlib import Path
+from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-if "server" not in sys.modules:
-    server_module = types.ModuleType("server")
-    server_module.__path__ = [str(ROOT / "server")]
-    server_module.__spec__ = ModuleSpec("server", loader=None, is_package=True)
-    sys.modules["server"] = server_module
-
-from server.cache import CacheStore
-from server.widgets import Surface, WidgetRegistry, WidgetRenderContext
-from server.widgets.message import MessageWidget
+from smart_display.config import AppConfig
+from smart_display.display.layout import LayoutArea
+from smart_display.display.style import DEFAULT_PALETTE
+from smart_display.widgets.base import Widget, WidgetContext
+from smart_display.widgets.factory import build_widgets
 
 
-def test_registry_fetch_and_render() -> None:
-    registry = WidgetRegistry()
-    widgets = list(registry.list())
-    slugs = {widget.slug for widget in widgets}
-    assert {"message", "clock"}.issubset(slugs)
+class DummyWidget(Widget[None]):
+    def fetch(self):
+        return None
 
-    async def run() -> None:
-        for widget in widgets:
-            context = await widget.fetch({}, state=None)
-            assert isinstance(context, WidgetRenderContext)
-            surface = Surface((400, 300), theme=context.theme)
-            image = widget.render(surface, context)
-            assert image.size == (400, 300)
-
-    asyncio.run(run())
+    def draw(self, image, draw, context, data):  # pragma: no cover - never called
+        raise AssertionError("draw should not be called when fetch returns None")
 
 
-def test_registry_with_cache_discovers_builtin_widgets() -> None:
-    cache = CacheStore()
-    registry = WidgetRegistry(cache=cache)
+def test_placeholder_rendering_changes_canvas():
+    widget = DummyWidget("dummy")
+    image = Image.new("RGB", (100, 100), "white")
+    context = WidgetContext(
+        area=LayoutArea(0, 0, 100, 100),
+        palette=DEFAULT_PALETTE,
+        now=datetime.now(),
+    )
+    widget.render(image, context)
+    assert image.getpixel((25, 25)) != (255, 255, 255)
 
-    slugs = {widget.slug for widget in registry.list()}
 
-    assert {"message", "clock"}.issubset(slugs)
-
-
-def test_message_widget_uses_default_text() -> None:
-    widget = MessageWidget()
-
-    async def run() -> None:
-        context = await widget.fetch({"text": "   "}, state=None)
-        assert context.data == "Photoframe"
-
-    asyncio.run(run())
+def test_build_widgets_respects_disabled():
+    config = AppConfig()
+    config.news.enabled = False
+    widgets = build_widgets(config)
+    assert "news" not in widgets
+    assert "agenda" in widgets
