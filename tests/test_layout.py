@@ -10,10 +10,15 @@ def test_layout_areas_cover_display():
     news = layout.area("news")
     market = layout.area("market")
 
-    assert agenda.left == 0 and agenda.top == 0
-    assert agenda.right == settings.width
-    assert agenda.bottom == news.top
-    assert news.bottom == settings.height
-    assert market.bottom == settings.height
-    assert market.right == settings.width
-    assert news.right == market.left
+    margin = agenda.left
+
+    assert margin == agenda.top
+    assert settings.width - agenda.right == margin
+    assert settings.height - news.bottom == margin
+
+    gutter = news.top - agenda.bottom
+    assert gutter == market.top - agenda.bottom
+    assert gutter == market.left - news.right
+
+    assert news.bottom == market.bottom
+    assert agenda.right == market.right
