@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw
 
 from ..config import MarketSettings
 from ..data.market import MarketDataProvider, MarketSnapshot
-from ..display.style import load_font
+from ..display.style import darken, lighten, load_font
 from .base import Widget, WidgetContext
 
 
@@ -22,26 +22,31 @@ class MarketWidget(Widget[MarketSnapshot]):
 
     def draw(self, image: Image.Image, draw: ImageDraw.ImageDraw, context: WidgetContext, data: MarketSnapshot) -> None:
         palette = context.palette
-        card_area = context.area.inset(12, 12)
+        card_area = context.area.inset(10, 10)
+        card_fill = lighten(palette.background, 0.12)
+        border_colour = lighten(palette.muted, 0.25)
         draw.rounded_rectangle(
             [card_area.left, card_area.top, card_area.right, card_area.bottom],
-            radius=24,
-            fill=(253, 253, 251),
-            outline=tuple(min(255, c + 30) for c in palette.muted),
+            radius=26,
+            fill=card_fill,
+            outline=border_colour,
             width=2,
         )
 
-        area = card_area.inset(28, 28)
-        label_font = load_font(30, bold=True)
-        symbol_font = load_font(24)
-        price_font = load_font(48, bold=True)
+        accent_line = [card_area.left, card_area.top, card_area.right, card_area.top + 6]
+        draw.rectangle(accent_line, fill=lighten(palette.accent, 0.05))
+
+        area = card_area.inset(26, 30)
+        label_font = load_font(28, bold=True)
+        symbol_font = load_font(22)
+        price_font = load_font(46, bold=True)
         meta_font = load_font(20)
 
         y = area.top
-        draw.text((area.left, y), "Market Overview", fill=palette.primary, font=label_font)
+        draw.text((area.left, y), "MARKET OVERVIEW", fill=palette.primary, font=label_font)
         y += _text_height(label_font) + 12
-        draw.line([(area.left, y), (area.right, y)], fill=tuple(min(255, c + 50) for c in palette.muted), width=2)
-        y += 18
+        draw.line([(area.left, y), (area.right, y)], fill=lighten(palette.muted, 0.1), width=2)
+        y += 16
 
         draw.text((area.left, y), data.symbol, fill=palette.secondary, font=symbol_font)
         y += _text_height(symbol_font) + 10
@@ -63,7 +68,7 @@ class MarketWidget(Widget[MarketSnapshot]):
             draw.text(
                 (area.left, area.bottom - _text_height(meta_font)),
                 timestamp,
-                fill=palette.muted,
+                fill=lighten(palette.muted, 0.15),
                 font=meta_font,
             )
 
@@ -90,15 +95,15 @@ def _draw_sparkline(draw: ImageDraw.ImageDraw, bounds, history, palette) -> None
     if inner_bounds[2] <= inner_bounds[0] or inner_bounds[3] <= inner_bounds[1]:
         return
 
-    bg_colour = tuple(min(255, c + 12) for c in palette.background)
-    outline_colour = tuple(min(255, c + 40) for c in palette.muted)
-    draw.rounded_rectangle(inner_bounds, radius=16, fill=bg_colour, outline=outline_colour, width=1)
+    bg_colour = palette.background
+    outline_colour = lighten(palette.muted, 0.2)
+    draw.rounded_rectangle(inner_bounds, radius=18, fill=lighten(bg_colour, 0.08), outline=outline_colour, width=1)
 
     inner_left, inner_top, inner_right, inner_bottom = inner_bounds
     inner_height = inner_bottom - inner_top
     inner_width = inner_right - inner_left
 
-    grid_colour = tuple(min(255, c + 60) for c in palette.muted)
+    grid_colour = darken(palette.secondary, 0.25)
     for fraction in (0.25, 0.5, 0.75):
         y = inner_top + inner_height * fraction
         draw.line([(inner_left + 8, y), (inner_right - 8, y)], fill=grid_colour, width=1)
@@ -110,10 +115,11 @@ def _draw_sparkline(draw: ImageDraw.ImageDraw, bounds, history, palette) -> None
         x = inner_left + idx * step
         y = inner_bottom - normalised * inner_height
         points.append((x, y))
-    draw.line(points, fill=palette.primary, width=4)
+    line_colour = lighten(palette.accent, 0.1)
+    draw.line(points, fill=line_colour, width=4)
     draw.ellipse(
         [points[-1][0] - 5, points[-1][1] - 5, points[-1][0] + 5, points[-1][1] + 5],
-        fill=palette.primary,
+        fill=line_colour,
     )
 
 

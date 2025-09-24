@@ -20,14 +20,28 @@ class Palette:
 
 
 DEFAULT_PALETTE = Palette(
-    background=(240, 240, 236),  # warm white
-    primary=(38, 38, 38),  # deep charcoal
-    secondary=(88, 88, 88),
-    accent=(220, 76, 70),  # inky red
-    positive=(32, 142, 72),  # deep green
-    muted=(120, 120, 120),
-    warning=(255, 185, 0),  # amber highlight
+    background=(12, 17, 26),  # deep navy
+    primary=(231, 238, 247),  # soft white
+    secondary=(148, 163, 184),  # slate
+    accent=(94, 234, 212),  # aqua accent
+    positive=(129, 230, 217),
+    muted=(71, 85, 105),
+    warning=(250, 204, 21),
 )
+
+
+def lighten(color: Tuple[int, int, int], amount: float) -> Tuple[int, int, int]:
+    """Return a colour blended towards white by ``amount``."""
+
+    amount = max(0.0, min(1.0, amount))
+    return tuple(int(channel + (255 - channel) * amount) for channel in color)
+
+
+def darken(color: Tuple[int, int, int], amount: float) -> Tuple[int, int, int]:
+    """Return a colour blended towards black by ``amount``."""
+
+    amount = max(0.0, min(1.0, amount))
+    return tuple(int(channel * (1 - amount)) for channel in color)
 
 
 def _font_candidates(bold: bool) -> Tuple[str, ...]:
@@ -54,4 +68,4 @@ def load_font(size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-__all__ = ["DEFAULT_PALETTE", "load_font", "Palette"]
+__all__ = ["DEFAULT_PALETTE", "load_font", "Palette", "lighten", "darken"]
