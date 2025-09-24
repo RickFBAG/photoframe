@@ -22,38 +22,50 @@ class MarketWidget(Widget[MarketSnapshot]):
 
     def draw(self, image: Image.Image, draw: ImageDraw.ImageDraw, context: WidgetContext, data: MarketSnapshot) -> None:
         palette = context.palette
-        area = context.area.inset(18, 18)
-        draw.rectangle([area.left, area.top, area.right, area.bottom], fill=(253, 253, 251), outline=palette.muted, width=2)
+        card_area = context.area.inset(12, 12)
+        draw.rounded_rectangle(
+            [card_area.left, card_area.top, card_area.right, card_area.bottom],
+            radius=24,
+            fill=(253, 253, 251),
+            outline=tuple(min(255, c + 30) for c in palette.muted),
+            width=2,
+        )
 
-        label_font = load_font(24, bold=True)
-        symbol_font = load_font(22)
-        price_font = load_font(42, bold=True)
-        meta_font = load_font(18)
+        area = card_area.inset(28, 28)
+        label_font = load_font(30, bold=True)
+        symbol_font = load_font(24)
+        price_font = load_font(48, bold=True)
+        meta_font = load_font(20)
 
-        draw.text((area.left + 8, area.top + 4), "Market", fill=palette.primary, font=label_font)
-        y = area.top + 4 + _text_height(label_font)
+        y = area.top
+        draw.text((area.left, y), "Market Overview", fill=palette.primary, font=label_font)
+        y += _text_height(label_font) + 12
+        draw.line([(area.left, y), (area.right, y)], fill=tuple(min(255, c + 50) for c in palette.muted), width=2)
+        y += 18
 
-        draw.text((area.left + 8, y + 6), data.symbol, fill=palette.secondary, font=symbol_font)
-        y += 6 + _text_height(symbol_font)
+        draw.text((area.left, y), data.symbol, fill=palette.secondary, font=symbol_font)
+        y += _text_height(symbol_font) + 10
 
         price_text = _format_price(data)
-        draw.text((area.left + 8, y + 8), price_text, fill=palette.primary, font=price_font)
+        draw.text((area.left, y), price_text, fill=palette.primary, font=price_font)
+        y += _text_height(price_font) + 6
 
         change_text, change_colour = _format_change(data, palette)
-        draw.text((area.left + 8, y + 16 + _text_height(price_font)), change_text, fill=change_colour, font=meta_font)
+        draw.text((area.left, y), change_text, fill=change_colour, font=meta_font)
+        y += _text_height(meta_font) + 20
+
+        timestamp_height = _text_height(meta_font) + 12 if data.last_updated else 0
+        spark_area = (area.left, y, area.right, area.bottom - timestamp_height)
+        _draw_sparkline(draw, spark_area, data.history, palette)
 
         if data.last_updated:
             timestamp = data.last_updated.strftime("Updated %H:%M")
             draw.text(
-                (area.left + 8, area.bottom - _text_height(meta_font) - 8),
+                (area.left, area.bottom - _text_height(meta_font)),
                 timestamp,
                 fill=palette.muted,
                 font=meta_font,
             )
-
-        spark_top = y + 20 + _text_height(price_font)
-        spark_area = (area.left + 8, spark_top, area.right - 8, area.bottom - _text_height(meta_font) - 18)
-        _draw_sparkline(draw, spark_area, data.history, palette)
 
 
 def _draw_sparkline(draw: ImageDraw.ImageDraw, bounds, history, palette) -> None:
@@ -68,16 +80,39 @@ def _draw_sparkline(draw: ImageDraw.ImageDraw, bounds, history, palette) -> None
         return
     if max_price == min_price:
         max_price += 1
-    step = width / (len(history) - 1)
+    inner_padding = 18
+    inner_bounds = (
+        left + inner_padding,
+        top + inner_padding,
+        right - inner_padding,
+        bottom - inner_padding,
+    )
+    if inner_bounds[2] <= inner_bounds[0] or inner_bounds[3] <= inner_bounds[1]:
+        return
+
+    bg_colour = tuple(min(255, c + 12) for c in palette.background)
+    outline_colour = tuple(min(255, c + 40) for c in palette.muted)
+    draw.rounded_rectangle(inner_bounds, radius=16, fill=bg_colour, outline=outline_colour, width=1)
+
+    inner_left, inner_top, inner_right, inner_bottom = inner_bounds
+    inner_height = inner_bottom - inner_top
+    inner_width = inner_right - inner_left
+
+    grid_colour = tuple(min(255, c + 60) for c in palette.muted)
+    for fraction in (0.25, 0.5, 0.75):
+        y = inner_top + inner_height * fraction
+        draw.line([(inner_left + 8, y), (inner_right - 8, y)], fill=grid_colour, width=1)
+
+    step = inner_width / (len(history) - 1)
     points = []
     for idx, price in enumerate(history):
         normalised = (price - min_price) / (max_price - min_price)
-        x = left + idx * step
-        y = bottom - normalised * height
+        x = inner_left + idx * step
+        y = inner_bottom - normalised * inner_height
         points.append((x, y))
-    draw.line(points, fill=palette.primary, width=3)
+    draw.line(points, fill=palette.primary, width=4)
     draw.ellipse(
-        [points[-1][0] - 4, points[-1][1] - 4, points[-1][0] + 4, points[-1][1] + 4],
+        [points[-1][0] - 5, points[-1][1] - 5, points[-1][0] + 5, points[-1][1] + 5],
         fill=palette.primary,
     )
 

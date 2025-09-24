@@ -23,54 +23,85 @@ class NewsWidget(Widget[List[NewsHeadline]]):
 
     def draw(self, image: Image.Image, draw: ImageDraw.ImageDraw, context: WidgetContext, data: List[NewsHeadline]) -> None:
         palette = context.palette
-        area = context.area.inset(16, 16)
-        draw.rectangle([area.left, area.top, area.right, area.bottom], fill=(245, 245, 243), outline=palette.muted, width=2)
+        card_area = context.area.inset(12, 12)
+        draw.rounded_rectangle(
+            [card_area.left, card_area.top, card_area.right, card_area.bottom],
+            radius=24,
+            fill=(250, 250, 247),
+            outline=tuple(min(255, c + 30) for c in palette.muted),
+            width=2,
+        )
 
-        header_font = load_font(28, bold=True)
-        body_font = load_font(20)
-        meta_font = load_font(16)
+        area = card_area.inset(28, 28)
+        header_font = load_font(32, bold=True)
+        body_font = load_font(22)
+        meta_font = load_font(18)
+        kicker_font = load_font(18, bold=True)
 
-        draw.text((area.left + 8, area.top + 6), "Top Headlines", fill=palette.primary, font=header_font)
-        y = area.top + 6 + _text_height(header_font)
+        y = area.top
+        draw.text((area.left, y), "Top Headlines", fill=palette.primary, font=header_font)
+        y += _text_height(header_font) + 12
+        draw.line([(area.left, y), (area.right, y)], fill=tuple(min(255, c + 60) for c in palette.muted), width=2)
+        y += 16
 
         if not data:
             draw.text(
-                (area.left + 8, y + 12),
+                (area.left, y),
                 "News feed unavailable",
                 fill=palette.muted,
                 font=body_font,
             )
             return
 
-        for headline in data:
-            y += 12
-            draw.ellipse(
-                [area.left + 8, y + 6, area.left + 18, y + 16],
-                fill=palette.accent,
-            )
+        for idx, headline in enumerate(data):
+            item_top = y
+            item_bottom = item_top
+
+            kicker = headline.source.upper() if headline.source else None
+            if kicker:
+                draw.text((area.left, item_bottom), kicker, fill=palette.accent, font=kicker_font)
+                item_bottom += _text_height(kicker_font) + 6
+
             draw.text(
-                (area.left + 28, y),
+                (area.left, item_bottom),
                 headline.title,
                 fill=palette.primary,
                 font=body_font,
             )
-            y += _text_height(body_font)
+            item_bottom += _text_height(body_font)
+
             meta = _format_metadata(headline, context.now)
             if meta:
+                badge_width = _text_width(meta_font, meta) + 20
+                badge_height = _text_height(meta_font) + 12
+                draw.rounded_rectangle(
+                    [area.left, item_bottom + 6, area.left + badge_width, item_bottom + 6 + badge_height],
+                    radius=badge_height // 2,
+                    fill=tuple(max(0, c - 20) for c in palette.secondary),
+                )
                 draw.text(
-                    (area.left + 28, y),
+                    (area.left + 10, item_bottom + 6 + (badge_height - _text_height(meta_font)) // 2),
                     meta,
-                    fill=palette.secondary,
+                    fill=(255, 255, 255),
                     font=meta_font,
                 )
-                y += _text_height(meta_font)
-            if y + _text_height(body_font) > area.bottom - 12:
+                item_bottom += badge_height + 12
+
+            y = item_bottom + 18
+            if idx < len(data) - 1 and y < area.bottom - _text_height(body_font):
+                draw.line([(area.left, y - 8), (area.right, y - 8)], fill=tuple(min(255, c + 45) for c in palette.muted), width=1)
+            if y > area.bottom - _text_height(body_font):
                 break
 
 
 def _text_height(font) -> int:
     bbox = font.getbbox("Hg")
     return bbox[3] - bbox[1]
+
+
+def _text_width(font, text: str) -> int:
+    bbox = font.getbbox(text)
+    return bbox[2] - bbox[0]
 
 
 def _format_metadata(headline: NewsHeadline, now: datetime) -> str:

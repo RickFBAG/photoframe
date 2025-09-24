@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from ..config import DisplaySettings
 from .style import DEFAULT_PALETTE
@@ -47,13 +47,39 @@ class LayoutManager:
 
     def _build_default_layout(self) -> Dict[str, LayoutArea]:
         width, height = self.settings.width, self.settings.height
-        agenda_height = int(height * 0.58)
-        news_width = int(width * 0.62)
+
+        outer_margin = int(min(width, height) * 0.06)
+        gutter = int(min(width, height) * 0.04)
+
+        usable_width = width - 2 * outer_margin
+        usable_height = height - 2 * outer_margin
+
+        agenda_height = int(usable_height * 0.58)
+        bottom_top = outer_margin + agenda_height + gutter
+        bottom_height = height - outer_margin - bottom_top
+
+        news_width = int((usable_width - gutter) * 0.6)
+        market_left = outer_margin + news_width + gutter
 
         return {
-            "agenda": LayoutArea(0, 0, width, agenda_height),
-            "news": LayoutArea(0, agenda_height, news_width, height),
-            "market": LayoutArea(news_width, agenda_height, width, height),
+            "agenda": LayoutArea(
+                outer_margin,
+                outer_margin,
+                outer_margin + usable_width,
+                outer_margin + agenda_height,
+            ),
+            "news": LayoutArea(
+                outer_margin,
+                bottom_top,
+                outer_margin + news_width,
+                bottom_top + bottom_height,
+            ),
+            "market": LayoutArea(
+                market_left,
+                bottom_top,
+                market_left + (usable_width - news_width - gutter),
+                bottom_top + bottom_height,
+            ),
         }
 
     def area(self, widget_id: str) -> LayoutArea:
@@ -64,11 +90,28 @@ class LayoutManager:
     def canvas(self) -> Image.Image:
         """Create a fresh canvas for rendering widgets."""
 
-        return Image.new(
+        width, height = self.settings.width, self.settings.height
+        base = Image.new(
             "RGB",
-            (self.settings.width, self.settings.height),
+            (width, height),
             color=DEFAULT_PALETTE.background,
         )
+        draw = ImageDraw.Draw(base)
+
+        top_colour = DEFAULT_PALETTE.background
+        bottom_colour = tuple(
+            min(255, int(channel * 1.05)) for channel in DEFAULT_PALETTE.background
+        )
+
+        for y in range(height):
+            blend = y / max(height - 1, 1)
+            colour = tuple(
+                int(top_colour[i] * (1 - blend) + bottom_colour[i] * blend)
+                for i in range(3)
+            )
+            draw.line([(0, y), (width, y)], fill=colour)
+
+        return base
 
     @property
     def palette(self):  # pragma: no cover - simple proxy
