@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 
 from ..config import NewsSettings
 from ..data.news import NewsDataProvider, NewsHeadline
-from ..display.style import load_font
+from ..display.style import darken, lighten, load_font
 from .base import Widget, WidgetContext
 
 
@@ -23,34 +23,34 @@ class NewsWidget(Widget[List[NewsHeadline]]):
 
     def draw(self, image: Image.Image, draw: ImageDraw.ImageDraw, context: WidgetContext, data: List[NewsHeadline]) -> None:
         palette = context.palette
-        card_area = context.area.inset(12, 12)
+        card_area = context.area.inset(10, 10)
+        card_fill = lighten(palette.background, 0.1)
+        border_colour = lighten(palette.muted, 0.25)
         draw.rounded_rectangle(
             [card_area.left, card_area.top, card_area.right, card_area.bottom],
-            radius=24,
-            fill=(250, 250, 247),
-            outline=tuple(min(255, c + 30) for c in palette.muted),
+            radius=26,
+            fill=card_fill,
+            outline=border_colour,
             width=2,
         )
 
-        area = card_area.inset(28, 28)
-        header_font = load_font(32, bold=True)
+        accent_strip = [card_area.left, card_area.top, card_area.right, card_area.top + 8]
+        draw.rectangle(accent_strip, fill=darken(palette.accent, 0.25))
+
+        area = card_area.inset(26, 30)
+        header_font = load_font(30, bold=True)
         body_font = load_font(22)
         meta_font = load_font(18)
         kicker_font = load_font(18, bold=True)
 
         y = area.top
-        draw.text((area.left, y), "Top Headlines", fill=palette.primary, font=header_font)
-        y += _text_height(header_font) + 12
-        draw.line([(area.left, y), (area.right, y)], fill=tuple(min(255, c + 60) for c in palette.muted), width=2)
-        y += 16
+        draw.text((area.left, y), "TOP STORIES", fill=palette.primary, font=header_font)
+        y += _text_height(header_font) + 10
+        draw.line([(area.left, y), (area.right, y)], fill=lighten(palette.muted, 0.1), width=2)
+        y += 14
 
         if not data:
-            draw.text(
-                (area.left, y),
-                "News feed unavailable",
-                fill=palette.muted,
-                font=body_font,
-            )
+            draw.text((area.left, y), "FEED UNAVAILABLE", fill=palette.secondary, font=kicker_font)
             return
 
         for idx, headline in enumerate(data):
@@ -59,8 +59,21 @@ class NewsWidget(Widget[List[NewsHeadline]]):
 
             kicker = headline.source.upper() if headline.source else None
             if kicker:
-                draw.text((area.left, item_bottom), kicker, fill=palette.accent, font=kicker_font)
-                item_bottom += _text_height(kicker_font) + 6
+                kicker_bg = darken(palette.accent, 0.2)
+                kicker_height = _text_height(kicker_font) + 10
+                kicker_width = _text_width(kicker_font, kicker) + 18
+                draw.rounded_rectangle(
+                    [area.left, item_bottom, area.left + kicker_width, item_bottom + kicker_height],
+                    radius=8,
+                    fill=kicker_bg,
+                )
+                draw.text(
+                    (area.left + 9, item_bottom + (kicker_height - _text_height(kicker_font)) // 2),
+                    kicker,
+                    fill=palette.primary,
+                    font=kicker_font,
+                )
+                item_bottom += kicker_height + 6
 
             draw.text(
                 (area.left, item_bottom),
@@ -77,7 +90,7 @@ class NewsWidget(Widget[List[NewsHeadline]]):
                 draw.rounded_rectangle(
                     [area.left, item_bottom + 6, area.left + badge_width, item_bottom + 6 + badge_height],
                     radius=badge_height // 2,
-                    fill=tuple(max(0, c - 20) for c in palette.secondary),
+                    fill=darken(palette.secondary, 0.35),
                 )
                 draw.text(
                     (area.left + 10, item_bottom + 6 + (badge_height - _text_height(meta_font)) // 2),

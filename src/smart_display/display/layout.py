@@ -7,7 +7,7 @@ from typing import Dict
 from PIL import Image, ImageDraw
 
 from ..config import DisplaySettings
-from .style import DEFAULT_PALETTE
+from .style import DEFAULT_PALETTE, darken, lighten
 
 
 @dataclass(frozen=True)
@@ -91,17 +91,11 @@ class LayoutManager:
         """Create a fresh canvas for rendering widgets."""
 
         width, height = self.settings.width, self.settings.height
-        base = Image.new(
-            "RGB",
-            (width, height),
-            color=DEFAULT_PALETTE.background,
-        )
+        base = Image.new("RGB", (width, height), color=DEFAULT_PALETTE.background)
         draw = ImageDraw.Draw(base)
 
-        top_colour = DEFAULT_PALETTE.background
-        bottom_colour = tuple(
-            min(255, int(channel * 1.05)) for channel in DEFAULT_PALETTE.background
-        )
+        top_colour = lighten(DEFAULT_PALETTE.background, 0.12)
+        bottom_colour = darken(DEFAULT_PALETTE.background, 0.18)
 
         for y in range(height):
             blend = y / max(height - 1, 1)
@@ -111,7 +105,19 @@ class LayoutManager:
             )
             draw.line([(0, y), (width, y)], fill=colour)
 
-        return base
+        highlight = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        highlight_draw = ImageDraw.Draw(highlight)
+        glow_colour = lighten(DEFAULT_PALETTE.accent, 0.35) + (68,)
+        ellipse_bounds = (
+            int(-width * 0.35),
+            int(-height * 0.25),
+            int(width * 0.85),
+            int(height * 0.9),
+        )
+        highlight_draw.ellipse(ellipse_bounds, fill=glow_colour)
+
+        textured = Image.alpha_composite(base.convert("RGBA"), highlight)
+        return textured.convert("RGB")
 
     @property
     def palette(self):  # pragma: no cover - simple proxy
