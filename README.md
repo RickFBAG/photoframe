@@ -1,31 +1,162 @@
-To active virtual environment use: source /home/rick/.venvs/photoframe/bin/activate
+# Smart Display for Inky Impression 7.3"
 
+Smart Display is a modular information board for the Inky Impression 7.3" (2025 edition) paired with a Raspberry Pi Zero 2 W.  
+It renders a daily agenda, a concise news feed, and a market overview while keeping room for additional widgets in the future.  
+The system is designed to run unattended, refreshing itself on a configurable cadence and exposing a lightweight configuration UI on the local network.
 
-# Inky Photoframe Dashboard
+## Features
 
-Een lichtgewicht dashboard voor het beheren van de Inky Photoframe fotocarrousel op een Raspberry Pi. De webinterface is geoptimaliseerd voor e-ink schermen (hoog contrast, beperkte kleuren) en draait zonder externe frameworks zodat alles responsief blijft op een Pi Zero.
+- **Agenda view** sourced from iCalendar feeds with focus on time, title, and location.
+- **News feed** that ingests any RSS/Atom source and surfaces succinct headlines.
+- **Market overview** displaying the latest quote and day change for a configured index or ticker (defaults to the "ETF All World" tracker).
+- **Full-colour layout** tuned for the Inky Impression 7.3" panel (800×480) with clear typography and balanced colour palette.
+- **Extensible widget framework**: shared widget lifecycle, layout management, and styling primitives make it straightforward to add new widgets.
+- **Web-based control panel** served by the Pi for updating data sources, refresh intervals, and widget availability without SSH access.
 
-## Starten
+## Hardware Requirements
+
+- Raspberry Pi Zero 2 W running Raspberry Pi OS (Bookworm or later recommended).
+- Inky Impression 7.3" (2025 edition) connected to the Pi's GPIO header.
+- Reliable network connection for retrieving calendar, news, and market data feeds.
+
+## Software Requirements
+
+- Python 3.11+
+- System packages: `libatlas-base-dev` (for NumPy used by the `inky` library), `libjpeg-dev`, `zlib1g-dev`, and fonts such as `fonts-dejavu`.
+
+## Installation
 
 ```bash
-./photo.py
+sudo apt update
+sudo apt install python3 python3-venv python3-pip libatlas-base-dev libjpeg-dev zlib1g-dev fonts-dejavu
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install .
+# On the Raspberry Pi with an Inky Impression attached install hardware drivers as well:
+# pip install .[hardware]
 ```
 
-De server start standaard op poort `8080` en serveert de interface via `http://<pi-adres>:8080/`. Afbeeldingen worden opgeslagen onder `/image` (pas dit aan in `photo.py` als je een andere map wilt gebruiken). De eerste start maakt de map automatisch aan.
+The `pip install .` step uses the `pyproject.toml` provided in this repository to pull all required Python dependencies, including Pillow and Flask. Install the optional `hardware` extra (`pip install .[hardware]`) on the Raspberry Pi to add the Inky drivers.
 
-## Front-end structuur
+## Configuration
 
-- `templates/index.html` – dashboardlayout met secties voor status, carrousel, upload, galerij, kalender en notities.
-- `static/css/main.css` – e-inkvriendelijke stijlen (lichte achtergrond, donkere typografie, beperkte accentkleur).
-- `static/js/app.js` – instappunt dat de componenten initialiseert.
-- `static/js/components/*` – kleine vanilla modules voor statuskaart, carrouselbediening, uploads, galerij en kalender.
+Configuration is stored in `config/config.json`. The first run creates the file with sensible defaults.  
+You can edit the file directly or use the built-in control panel.
 
-Alle assets samen blijven ruim onder de 100 KB zodat laden snel blijft, zelfs via het beperkte wifi van een Pi.
+Key options include:
 
-## Cache & statische bestanden
+- **Refresh cadence:** Global refresh interval in minutes for the display loop.
+- **Widget toggles:** Enable/disable agenda, news, or market widgets.
+- **Data sources:**
+  - Agenda: list of iCalendar feed URLs plus per-feed look-ahead days and maximum events.
+  - News: RSS/Atom feed URL and number of headlines to show.
+  - Market: ticker symbol (default `EUNL.AS` for a global all-world ETF) and historical window.
+- **Display options:** Rotation, border colour, and fallback image output when running without the Inky hardware attached.
 
-De server levert bestanden uit `static/` met `Cache-Control: public, max-age=3600`. Browsers kunnen de assets (CSS/JS) dus een uur cachen; een harde refresh of herstart van de server forceert nieuwe bestanden. API-antwoorden en de HTML worden met `Cache-Control: no-store` verstuurd om steeds actuele statusinformatie op te halen.
+Example snippet:
 
-## Statuspolling
+```json
+{
+  "refresh_minutes": 10,
+  "display": {
+    "rotation": 180,
+    "border_colour": "white"
+  },
+  "agenda": {
+    "enabled": true,
+    "lookahead_days": 3,
+    "max_events": 5,
+    "calendars": [
+      {
+        "name": "Personal",
+        "url": "https://calendar.google.com/calendar/ical/.../basic.ics"
+      }
+    ]
+  }
+}
+```
 
-De statuskaart vraagt elke 10 seconden `GET /api/status` op. De kaart toont badges met de display-/carrouselstatus, een voortgangsbalk voor de resterende tijd tot de volgende wissel en werkt de notities bij. Druk op "Ververs" om direct een nieuwe status op te halen.
+When no events or headlines are available the widgets fall back to informative placeholders so the display still communicates its status.
+
+## Running the Display Loop
+
+After installation and configuration:
+
+```bash
+source .venv/bin/activate
+python -m smart_display.app
+```
+
+The application runs an infinite refresh cycle.  
+On each cycle it:
+
+1. Reloads the latest configuration.
+2. Fetches data for each active widget.
+3. Renders the composed layout to an off-screen Pillow image.
+4. Pushes the image to the Inky Impression panel (or saves to `output/latest.png` when the panel is not detected).
+
+Use `CTRL+C` to stop the loop.
+
+## Configuration Web UI
+
+Start the configuration service on the Pi:
+
+```bash
+source .venv/bin/activate
+python -m smart_display.web.server
+```
+
+The UI listens on `http://<raspberry-pi-ip>:8080` by default.  
+It exposes:
+
+- A responsive dashboard showing the current configuration.
+- Forms for editing widget settings and refresh intervals.
+- Buttons to trigger an on-demand refresh cycle or reboot the display process (implemented via HTTP hooks).
+
+All changes are persisted to `config/config.json` and applied on the next refresh cycle of the main app.
+
+> Run the UI alongside the display loop by launching it via systemd or tmux.  
+> The web service is lightweight (Flask + vanilla HTML/JS) and suitable for the Pi Zero 2 W.
+
+## Adding New Widgets
+
+Widgets share a common lifecycle defined in `smart_display/widgets/base.py`:
+
+1. Fetch data via a provider (`smart_display/data/*`).
+2. Render within a bounding box using the shared colour palette and font utilities.
+
+To add a widget:
+
+1. Create a new provider in `smart_display/data/` that implements `fetch()` returning serialisable data.
+2. Implement a widget class inheriting `Widget` and register it in `smart_display/widgets/factory.py` (or extend `WIDGET_REGISTRY`).
+3. Update the configuration schema to expose the widget settings.
+4. Adjust the layout in `smart_display/display/layout.py` to allocate a region on the canvas.
+
+The main loop automatically picks up registered widgets that are enabled in the configuration file.
+
+## Development & Testing
+
+Install the optional development dependencies and run the test suite:
+
+```bash
+pip install .[dev]
+pytest
+```
+
+The included tests cover configuration round-trips, layout calculations, and data provider fallbacks.  
+Extend the suite as you add new widgets or features.
+
+## Deployment Notes
+
+- Use `systemd` services to start both the display loop and the configuration UI on boot.
+- Configure log rotation for `/var/log/smart-display.log` if you redirect logs there.
+- Keep update intervals mindful of API limits for calendar/news/market providers.
+- The Pi Zero 2 W benefits from enabling swap (512 MB) to accommodate the Inky library and Pillow when handling large refreshes.
+
+## License
+
+This project is released under the MIT License.  
+See [LICENSE](LICENSE) for details.
+

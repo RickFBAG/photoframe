@@ -1,0 +1,32 @@
+{
+  "refresh_minutes": 15,
+  "display": {
+    "width": 800,
+    "height": 480,
+    "rotation": 0,
+    "border_colour": "white",
+    "enable_hardware": true,
+    "fallback_image": "output/latest.png"
+  },
+  "agenda": {
+    "enabled": true,
+    "lookahead_days": 3,
+    "max_events": 6,
+    "calendars": []
+  },
+  "news": {
+    "enabled": true,
+    "feed_url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "max_items": 4
+  },
+  "market": {
+    "enabled": true,
+    "symbol": "EUNL.AS",
+    "history_days": 5
+  },
+  "web": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8080
+  }
+}
